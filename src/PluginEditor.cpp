@@ -3,7 +3,7 @@
 
 InspectorEditor::InspectorEditor(InspectorProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    title.setText("Arranger Manager — ARA Inspector 0.0a", juce::dontSendNotification);
+    title.setText("Arranger Manager - ARA Inspector 0.0a", juce::dontSendNotification);
     title.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(title);
     output.setMultiLine(true);
