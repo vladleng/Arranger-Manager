@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "InspectorState.h"
+#include <algorithm>
 
 namespace
 {
@@ -86,6 +87,17 @@ void InspectorEditor::paint(juce::Graphics& g)
 }
 void InspectorEditor::resized()
 {
+    // Studio Pro temporarily assigns a very small editor size while moving an
+    // Event FX window into its dock. Avoid passing invalid rectangles to JUCE.
+    if (getWidth() < 500 || getHeight() < 300)
+    {
+        title.setBounds(0, 0, 0, 0);
+        copy.setBounds(0, 0, 0, 0);
+        help.setBounds(0, 0, 0, 0);
+        list.setBounds(0, 0, 0, 0);
+        output.setBounds(0, 0, 0, 0);
+        return;
+    }
     auto area = getLocalBounds().reduced(16);
     auto header = area.removeFromTop(44);
     copy.setBounds(header.removeFromRight(145).reduced(4));
@@ -111,9 +123,17 @@ void InspectorEditor::timerCallback()
             row.duration = region.durationSeconds;
             next.push_back(std::move(row));
         }
-    rows = std::move(next);
-    list.updateContent();
-    list.repaint();
+    const auto changed = next.size() != rows.size()
+        || ! std::equal(next.begin(), next.end(), rows.begin(), [](const Row& a, const Row& b)
+        {
+            return a.track == b.track && a.name == b.name && a.start == b.start && a.duration == b.duration;
+        });
+    if (changed)
+    {
+        rows = std::move(next);
+        list.updateContent();
+        list.repaint();
+    }
     const auto text = report();
     if (text != output.getText()) output.setText(text, false);
 }
@@ -122,20 +142,25 @@ int InspectorEditor::getNumRows() { return static_cast<int>(rows.size()); }
 
 void InspectorEditor::paintListBoxItem(int rowIndex, juce::Graphics& g, int width, int height, bool selected)
 {
-    if (rowIndex < 0 || rowIndex >= static_cast<int>(rows.size())) return;
+    if (rowIndex < 0 || rowIndex >= static_cast<int>(rows.size()) || width <= 0 || height <= 0) return;
     const auto& row = rows[static_cast<size_t>(rowIndex)];
     g.fillAll(selected ? juce::Colour(0xff354554) : (rowIndex % 2 ? juce::Colour(0xff26313b) : juce::Colour(0xff222b33)));
-    chip(g, {9, 7, 92, height - 14}, statusColor(row.tag.status), arranger::label(row.tag.status));
-    chip(g, {109, 7, 46, height - 14}, priorityColor(row.tag.priority), arranger::label(row.tag.priority));
+    const auto chipHeight = std::max(1, height - 14);
+    chip(g, {9, 7, 92, chipHeight}, statusColor(row.tag.status), arranger::label(row.tag.status));
+    if (width < 160) return;
+    chip(g, {109, 7, 46, chipHeight}, priorityColor(row.tag.priority), arranger::label(row.tag.priority));
+    if (width < 340) return;
     g.setColour(juce::Colour(0xffdce4eb));
     g.setFont(juce::FontOptions(14.0f));
-    g.drawFittedText(row.track, {165, 0, 150, height}, juce::Justification::centredLeft, 1);
+    g.drawFittedText(row.track, juce::Rectangle<int> {165, 0, std::min(150, width - 175), height}, juce::Justification::centredLeft, 1);
     const auto note = row.tag.valid && ! row.tag.note.empty()
         ? juce::String::fromUTF8(row.tag.note.c_str()) : row.name;
-    g.drawFittedText(note, {320, 0, width - 480, height}, juce::Justification::centredLeft, 1);
+    if (width > 490)
+        g.drawFittedText(note, juce::Rectangle<int> {320, 0, width - 480, height}, juce::Justification::centredLeft, 1);
     g.setColour(juce::Colour(0xffaebdca));
-    g.drawText(juce::String(row.start, 1) + " - " + juce::String(row.start + row.duration, 1) + " s",
-               juce::Rectangle<int> {width - 155, 0, 145, height}, juce::Justification::centredRight);
+    if (width > 490)
+        g.drawText(juce::String(row.start, 1) + " - " + juce::String(row.start + row.duration, 1) + " s",
+                   juce::Rectangle<int> {width - 155, 0, 145, height}, juce::Justification::centredRight);
 }
 
 juce::String InspectorEditor::report() const
