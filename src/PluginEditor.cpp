@@ -135,7 +135,7 @@ void InspectorEditor::paintListBoxItem(int rowIndex, juce::Graphics& g, int widt
     g.drawFittedText(note, {320, 0, width - 480, height}, juce::Justification::centredLeft, 1);
     g.setColour(juce::Colour(0xffaebdca));
     g.drawText(juce::String(row.start, 1) + " - " + juce::String(row.start + row.duration, 1) + " s",
-               {width - 155, 0, 145, height}, juce::Justification::centredRight);
+               juce::Rectangle<int> {width - 155, 0, 145, height}, juce::Justification::centredRight);
 }
 
 juce::String InspectorEditor::report() const
