@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaInformation>
+  <Attribute id="Package:ID" value="com.moonriverstudio.arrangermanager.contextprobe"/>
+  <Attribute id="Package:Name" value="Arranger Manager Context Probe"/>
+  <Attribute id="Package:Version" value="0.1.0"/>
+  <Attribute id="Package:Vendor" value="Moon River Studio"/>
+</MetaInformation>

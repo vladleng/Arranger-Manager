@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ClassFactory>
+  <ScriptClass classID="{59A1CF64-CE85-4AE9-842D-458822946E01}"
+               category="EditTask" subCategory="EventEdit"
+               name="Export Arranger Sections" sourceFile="main.js"
+               functionName="createArrangerInstance">
+    <Attribute id="menuGroup" value="Arranger Manager"/>
+    <Attribute id="commandCategory" value="Arranger Manager"/>
+  </ScriptClass>
+  <ScriptClass classID="{59A1CF64-CE85-4AE9-842D-458822946E02}"
+               category="EditTask" subCategory="EventEdit"
+               name="Export Markers" sourceFile="main.js"
+               functionName="createMarkerInstance">
+    <Attribute id="menuGroup" value="Arranger Manager"/>
+    <Attribute id="commandCategory" value="Arranger Manager"/>
+  </ScriptClass>
+</ClassFactory>
