@@ -19,11 +19,12 @@ jobs:
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0d" | Out-Null
-          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager 0.0d"
-          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0d"
-          Copy-Item -Force "docs/DOCK-TEST-0.0d.md" "package/Arranger Manager 0.0d"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0e" | Out-Null
+          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager 0.0e"
+          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0e"
+          Copy-Item -Force "scripts/ArrangerManagerContextProbe.package" "package/Arranger Manager 0.0e"
+          Copy-Item -Force "docs/CONTEXT-BRIDGE-0.0e.md" "package/Arranger Manager 0.0e"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-0.0d-Windows
+          name: Arranger-Manager-0.0e-Windows
           path: package
