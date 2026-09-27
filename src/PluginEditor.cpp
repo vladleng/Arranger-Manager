@@ -42,7 +42,7 @@ void chip(juce::Graphics& g, juce::Rectangle<int> area, juce::Colour color, cons
 
 InspectorEditor::InspectorEditor(InspectorProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    title.setText("Arranger Manager - Map Preview 0.0b", juce::dontSendNotification);
+    title.setText("Arranger Manager - Map Preview 0.0d", juce::dontSendNotification);
     title.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(title);
     help.setText("Event: STATUS | P1 | note    /    event color = status, priority badge = separate color", juce::dontSendNotification);
@@ -59,6 +59,8 @@ InspectorEditor::InspectorEditor(InspectorProcessor& p) : juce::AudioProcessorEd
     addAndMakeVisible(output);
     copy.onClick = [this] { juce::SystemClipboard::copyTextToClipboard(report()); };
     addAndMakeVisible(copy);
+    setResizable(true, true);
+    setResizeLimits(320, 240, 1800, 1400);
     setSize(960, 720);
     timerCallback();
     startTimerHz(4);
@@ -70,26 +72,28 @@ void InspectorEditor::paint(juce::Graphics& g)
     g.fillAll(juce::Colour(0xff1d232b));
     const arranger::Status statuses[] = { arranger::Status::todo, arranger::Status::wip, arranger::Status::draft,
         arranger::Status::review, arranger::Status::done, arranger::Status::blocked };
-    int x = 18;
+    const bool compact = getWidth() < 650;
+    int index = 0;
     for (const auto status : statuses)
     {
-        chip(g, {x, 62, 92, 24}, statusColor(status), arranger::label(status));
-        x += 100;
+        const int column = compact ? index % 3 : index;
+        const int row = compact ? index / 3 : 0;
+        chip(g, {18 + column * 100, 62 + row * 30, 92, 24}, statusColor(status), arranger::label(status));
+        ++index;
     }
     const arranger::Priority priorities[] = { arranger::Priority::p0, arranger::Priority::p1,
         arranger::Priority::p2, arranger::Priority::p3 };
-    x = 18;
+    int x = 18;
     for (const auto priority : priorities)
     {
-        chip(g, {x, 93, 68, 24}, priorityColor(priority), arranger::label(priority));
+        chip(g, {x, compact ? 123 : 93, 68, 24}, priorityColor(priority), arranger::label(priority));
         x += 76;
     }
 }
 void InspectorEditor::resized()
 {
-    // Studio Pro temporarily assigns a very small editor size while moving an
-    // Event FX window into its dock. Avoid passing invalid rectangles to JUCE.
-    if (getWidth() < 500 || getHeight() < 300)
+    // The host may briefly report zero or tiny dimensions while reparenting.
+    if (getWidth() < 320 || getHeight() < 180)
     {
         title.setBounds(0, 0, 0, 0);
         copy.setBounds(0, 0, 0, 0);
@@ -98,15 +102,27 @@ void InspectorEditor::resized()
         output.setBounds(0, 0, 0, 0);
         return;
     }
-    auto area = getLocalBounds().reduced(16);
-    auto header = area.removeFromTop(44);
-    copy.setBounds(header.removeFromRight(145).reduced(4));
+    auto area = getLocalBounds().reduced(12);
+    auto header = area.removeFromTop(40);
+    copy.setBounds(header.removeFromRight(120).reduced(3));
     title.setBounds(header);
-    area.removeFromTop(60);
-    help.setBounds(area.removeFromTop(30));
-    list.setBounds(area.removeFromTop((area.getHeight() * 52) / 100));
-    area.removeFromTop(10);
-    output.setBounds(area);
+    area.removeFromTop(getWidth() < 650 ? 96 : 66);
+    const bool showHelp = getHeight() >= 350;
+    help.setVisible(showHelp);
+    help.setBounds(showHelp ? area.removeFromTop(26) : juce::Rectangle<int>{});
+    const bool showReport = getHeight() >= 500;
+    output.setVisible(showReport);
+    if (showReport)
+    {
+        list.setBounds(area.removeFromTop(std::max(0, (area.getHeight() * 60) / 100)));
+        area.removeFromTop(8);
+        output.setBounds(area);
+    }
+    else
+    {
+        list.setBounds(area);
+        output.setBounds({});
+    }
 }
 
 void InspectorEditor::timerCallback()

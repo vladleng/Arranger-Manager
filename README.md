@@ -60,4 +60,6 @@ The Windows package is produced by GitHub Actions. See [Studio Pro test checklis
 
 The [Map Preview 0.0b](docs/MAP-PREVIEW-0.0b.md) branch adds status and priority parsing with separate color badges while retaining the raw ARA report. It is an early Stage 1 interface experiment, not the coverage engine.
 
-The [Hub 0.0c test build](docs/HUB-0.0c.md) adds a separate ordinary VST3 interface. ARA Inspector remains on each marked event and publishes region data to the Hub inside the Studio Pro process. The Hub window resizes without scaling text or controls and is intended for docking tests after the ARA Event FX docking crash.
+The [Hub 0.0c test build](docs/HUB-0.0c.md) adds a separate ordinary VST3 interface. ARA Inspector remains on each marked event and publishes region data to the Hub inside the Studio Pro process. The Hub window resizes without scaling text or controls, but remains floating in Studio Pro.
+
+In Studio Pro, only the ARA editor attaches to the relevant panel. The [0.0d dock test](docs/DOCK-TEST-0.0d.md) therefore makes the ARA Inspector itself responsive; the ordinary Hub remains an optional floating view.
