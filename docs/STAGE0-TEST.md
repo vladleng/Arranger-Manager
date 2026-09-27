@@ -5,8 +5,8 @@ This is a diagnostic VST3, not the Arranger Manager dashboard. It passes audio t
 ## Setup
 
 1. Download `Arranger-Manager-Inspector-0.0a-Windows` from the successful GitHub Actions build. Copy `Arranger Manager Inspector.vst3` into your Windows VST3 location.
-2. In a **copy** of a Studio Pro project, create three audio tracks named `ARRANGER — Brass`, `ARRANGER — Strings`, `ARRANGER — Bass`.
-3. Put actual silent audio events on each track (not empty MIDI Parts). Give them distinct event names, positions and durations. Add the Inspector as an ARA/Event FX to **each service event**. Copying or splitting an event copies its Event FX in the observed Studio Pro session; verify the new event still has it.
+2. In a **copy** of a Studio Pro project, create three audio tracks named `ARRANGER — Brass`, `ARRANGER — Strings`, `ARRANGER — Bass`. Import a real silent WAV source, such as `Arranger-Manager-Silence-120s-48k-mono.wav` (120 s, 48 kHz mono PCM16).
+3. Place events made from that silent WAV on each track. Empty clips without an audio source are not usable for this ARA workflow in Studio Pro. Give events distinct names, positions and durations. Add the Inspector as an ARA/Event FX to **each service event**. Copying or splitting an event copies its Event FX in the observed Studio Pro session; verify the new event still has it.
 4. Open its editor and use **Copy report** after each change. Record what Studio Pro shows on the timeline alongside the report. Times in the report are seconds, not bars.
 
 ## Experiments
@@ -20,7 +20,7 @@ This is a diagnostic VST3, not the Arranger Manager dashboard. It passes audio t
 | Color | Recolor event and track separately | Explicit region and sequence RGB; `<not provided>` is a valid finding |
 | Structure | Copy/duplicate, split, overlap, then delete events | Event FX copied; region counts and rows match the timeline; changes appear live |
 | Disabled FX | Disable the Event FX and edit event names/positions | Does ARA continue to update without audio processing? |
-| Mute | Mute an event and then a track | Does ARA still expose the same regions? |
+| Mute | Mute the service track, keeping events unmuted | Does ARA still expose the same regions while event colors stay visible? |
 | Persistence | Save, close, reopen project | Stable names/positions and ARA visibility |
 
 The report shows what **this ARA controller** sees; a count of one is not evidence that the entire DAW project has only one event. Test an event without the Inspector separately before assuming it is included in the ARA graph.
@@ -31,7 +31,7 @@ The report shows what **this ARA controller** sees; a count of one is not eviden
 - Explicit event names and region/sequence colors were available. Renaming two events and moving another event from 120 s to 128 s updated the open report; revision advanced from 111 to 122.
 - The user observed that copy/split carries the Event FX, and that disabled Event FX still receives ARA changes in the open session.
 - The user reports that changes remain stable after saving/reopening and with mute. The screenshot's Performance Monitor also shows all eight Event FX copies disabled while the open report reflects the edits.
-- The screenshots use audible events with waveforms. An actual silent audio source/event must still be tested before treating it as a reliable Arrangement Map marker.
+- The screenshots use audible events with waveforms. An actual silent WAV source/event must still be tested before treating it as a reliable Arrangement Map marker. The user reports that empty clips without an audio source do not work with ARA; mute the service track rather than events to preserve their colors.
 - Resize, recolor update, deletion, overlap, and events lacking the ARA insert have not been demonstrated individually. Do not treat the advancing revision alone as proof of every operation.
 
 ## Pass criteria
