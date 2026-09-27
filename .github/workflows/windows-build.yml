@@ -1,0 +1,26 @@
+name: Windows Inspector Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build
+      - name: Build
+        run: cmake --build build --config Release --target ArrangerManagerInspector_VST3 --parallel 2
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager Inspector 0.0a" | Out-Null
+          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager Inspector 0.0a"
+          Copy-Item -Force "docs/STAGE0-TEST.md" "package/Arranger Manager Inspector 0.0a"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arranger-Manager-Inspector-0.0a-Windows
+          path: package

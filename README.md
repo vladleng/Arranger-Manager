@@ -51,3 +51,9 @@ Arranger Manager должен превращать такую разметку �
 **Concept / pre-development.**
 
 До начала полноценной реализации необходимо подтвердить ARA-возможности Studio Pro на служебных audio regions.
+
+### Stage 0 prototype
+
+`Arranger Manager Inspector 0.0a` is a separate, read-only ARA VST3. It lists the region sequences and playback regions visible to its ARA document controller, including explicit names/colors, position, duration and live update counter. It reuses the JUCE 9.0.2 + ARA SDK 2.3.0 integration pattern proven in Smart Voicing without carrying over the harmonizer or its shared-memory bridge.
+
+The Windows package is produced by GitHub Actions. See [Studio Pro test checklist](docs/STAGE0-TEST.md). Host behavior remains unverified until the test is run in Studio Pro.
