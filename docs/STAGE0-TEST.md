@@ -30,7 +30,9 @@ The report shows what **this ARA controller** sees; a count of one is not eviden
 - Eight events with eight Event FX on two audio tracks appeared as **two sequences / eight regions in one document controller**.
 - Explicit event names and region/sequence colors were available. Renaming two events and moving another event from 120 s to 128 s updated the open report; revision advanced from 111 to 122.
 - The user observed that copy/split carries the Event FX, and that disabled Event FX still receives ARA changes in the open session.
-- Resize, track/event mute, deletion, overlap, save/reopen, and events lacking the ARA insert remain to be tested separately. Do not treat the advancing revision alone as proof of every operation.
+- The user reports that changes remain stable after saving/reopening and with mute. The screenshot's Performance Monitor also shows all eight Event FX copies disabled while the open report reflects the edits.
+- The screenshots use audible events with waveforms. An actual silent audio source/event must still be tested before treating it as a reliable Arrangement Map marker.
+- Resize, recolor update, deletion, overlap, and events lacking the ARA insert have not been demonstrated individually. Do not treat the advancing revision alone as proof of every operation.
 
 ## Pass criteria
 
