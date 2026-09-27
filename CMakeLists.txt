@@ -34,7 +34,7 @@ juce_add_plugin(ArrangerManagerInspector
 juce_generate_juce_header(ArrangerManagerInspector)
 target_sources(ArrangerManagerInspector PRIVATE
     src/ArrangementTag.h
-    src/InspectorState.h
+    src/InspectorState.h src/SharedArrangementMap.h
     src/InspectorDocumentController.h src/InspectorDocumentController.cpp
     src/PluginProcessor.h src/PluginProcessor.cpp
     src/PluginEditor.h src/PluginEditor.cpp)
@@ -43,6 +43,33 @@ if(MSVC)
     target_compile_options(ArrangerManagerInspector PRIVATE /utf-8)
 endif()
 target_link_libraries(ArrangerManagerInspector PRIVATE juce::juce_audio_utils
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
+juce_add_plugin(ArrangerManagerHub
+    COMPANY_NAME "Moon River Studio"
+    BUNDLE_ID "com.moonriverstudio.arrangermanagerhub"
+    PLUGIN_MANUFACTURER_CODE MNRV
+    PLUGIN_CODE AmHb
+    FORMATS VST3
+    PRODUCT_NAME "Arranger Manager Hub"
+    IS_SYNTH FALSE
+    VST3_CATEGORIES Fx
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    IS_ARA_EFFECT FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    COPY_PLUGIN_AFTER_BUILD FALSE)
+juce_generate_juce_header(ArrangerManagerHub)
+target_sources(ArrangerManagerHub PRIVATE
+    src/ArrangementTag.h src/SharedArrangementMap.h
+    src/HubProcessor.h src/HubProcessor.cpp
+    src/HubEditor.h src/HubEditor.cpp)
+target_compile_definitions(ArrangerManagerHub PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+if(MSVC)
+    target_compile_options(ArrangerManagerHub PRIVATE /utf-8)
+endif()
+target_link_libraries(ArrangerManagerHub PRIVATE juce::juce_audio_utils
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
 
 include(CTest)

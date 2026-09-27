@@ -13,16 +13,17 @@ jobs:
       - name: Configure
         run: cmake -S . -B build
       - name: Build
-        run: cmake --build build --config Release --target ArrangerManagerInspector_VST3 ArrangementTagTests --parallel 2
+        run: cmake --build build --config Release --target ArrangerManagerInspector_VST3 ArrangerManagerHub_VST3 ArrangementTagTests --parallel 2
       - name: Test name parser
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager Map Preview 0.0b" | Out-Null
-          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager Map Preview 0.0b"
-          Copy-Item -Force "docs/MAP-PREVIEW-0.0b.md" "package/Arranger Manager Map Preview 0.0b"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager Hub 0.0c" | Out-Null
+          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager Hub 0.0c"
+          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager Hub 0.0c"
+          Copy-Item -Force "docs/HUB-0.0c.md" "package/Arranger Manager Hub 0.0c"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-Map-Preview-0.0b-Windows
+          name: Arranger-Manager-Hub-0.0c-Windows
           path: package

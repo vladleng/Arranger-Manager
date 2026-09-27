@@ -59,3 +59,5 @@ Arranger Manager должен превращать такую разметку �
 The Windows package is produced by GitHub Actions. See [Studio Pro test checklist](docs/STAGE0-TEST.md). Host behavior remains unverified until the test is run in Studio Pro.
 
 The [Map Preview 0.0b](docs/MAP-PREVIEW-0.0b.md) branch adds status and priority parsing with separate color badges while retaining the raw ARA report. It is an early Stage 1 interface experiment, not the coverage engine.
+
+The [Hub 0.0c test build](docs/HUB-0.0c.md) adds a separate ordinary VST3 interface. ARA Inspector remains on each marked event and publishes region data to the Hub inside the Studio Pro process. The Hub window resizes without scaling text or controls and is intended for docking tests after the ARA Event FX docking crash.

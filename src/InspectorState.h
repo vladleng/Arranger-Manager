@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "SharedArrangementMap.h"
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -35,12 +36,14 @@ public:
     {
         const std::scoped_lock lock(mutex);
         snapshots[controller] = std::move(snapshot);
+        publishShared();
     }
 
     void remove(const void* controller)
     {
         const std::scoped_lock lock(mutex);
         snapshots.erase(controller);
+        publishShared();
     }
 
     std::vector<InspectorSnapshot> read() const
@@ -53,6 +56,28 @@ public:
     }
 
 private:
+    void publishShared()
+    {
+        arranger::SharedMap map;
+        map.revision = ++revision;
+        map.documents = static_cast<std::uint32_t>(snapshots.size());
+        for (const auto& [source, snapshot] : snapshots)
+        {
+            juce::ignoreUnused(source);
+            for (const auto& region : snapshot.regions)
+            {
+                if (map.count >= arranger::maxSharedRegions) break;
+                auto& row = map.regions[map.count++];
+                region.sequenceName.copyToUTF8(row.track, sizeof(row.track));
+                region.effectiveName.copyToUTF8(row.name, sizeof(row.name));
+                row.startSeconds = region.startSeconds;
+                row.durationSeconds = region.durationSeconds;
+            }
+        }
+        arranger::SharedArrangementMap::instance().publish(map);
+    }
+
+    std::uint64_t revision = 0;
     mutable std::mutex mutex;
     std::unordered_map<const void*, InspectorSnapshot> snapshots;
 };
