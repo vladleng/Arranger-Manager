@@ -57,3 +57,5 @@ Arranger Manager должен превращать такую разметку �
 `Arranger Manager Inspector 0.0a` is a separate, read-only ARA VST3. It lists the region sequences and playback regions visible to its ARA document controller, including explicit names/colors, position, duration and live update counter. It reuses the JUCE 9.0.2 + ARA SDK 2.3.0 integration pattern proven in Smart Voicing without carrying over the harmonizer or its shared-memory bridge.
 
 The Windows package is produced by GitHub Actions. See [Studio Pro test checklist](docs/STAGE0-TEST.md). Host behavior remains unverified until the test is run in Studio Pro.
+
+The [Map Preview 0.0b](docs/MAP-PREVIEW-0.0b.md) branch adds status and priority parsing with separate color badges while retaining the raw ARA report. It is an early Stage 1 interface experiment, not the coverage engine.

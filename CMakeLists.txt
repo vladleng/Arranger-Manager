@@ -33,6 +33,7 @@ juce_add_plugin(ArrangerManagerInspector
 
 juce_generate_juce_header(ArrangerManagerInspector)
 target_sources(ArrangerManagerInspector PRIVATE
+    src/ArrangementTag.h
     src/InspectorState.h
     src/InspectorDocumentController.h src/InspectorDocumentController.cpp
     src/PluginProcessor.h src/PluginProcessor.cpp
@@ -43,3 +44,9 @@ if(MSVC)
 endif()
 target_link_libraries(ArrangerManagerInspector PRIVATE juce::juce_audio_utils
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
+include(CTest)
+add_executable(ArrangementTagTests tests/ArrangementTagTests.cpp)
+target_include_directories(ArrangementTagTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(ArrangementTagTests PRIVATE cxx_std_20)
+add_test(NAME ArrangementTagTests COMMAND ArrangementTagTests)
