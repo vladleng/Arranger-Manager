@@ -28,6 +28,8 @@ juce::String readEntry(juce::ZipFile& zip, const juce::String& name, juce::int64
 
 std::unique_ptr<juce::XmlElement> parse(juce::String xml, const juce::String& name, juce::String& error)
 {
+    // String-based XmlDocument parsing does not discard a UTF-8 byte-order mark.
+    if (xml.startsWithChar(static_cast<juce_wchar>(0xfeff))) xml = xml.substring(1);
     if (xml.containsIgnoreCase("<!DOCTYPE") || xml.containsIgnoreCase("<!ENTITY"))
     {
         error = "Unsupported XML in " + name;
@@ -35,8 +37,9 @@ std::unique_ptr<juce::XmlElement> parse(juce::String xml, const juce::String& na
     }
     // Studio Pro 8.1.2 writes x:id without an XML namespace declaration.
     xml = xml.replace(" x:id=", " x_id=");
-    auto root = juce::XmlDocument::parse(xml);
-    if (root == nullptr) error = "Cannot parse " + name;
+    juce::XmlDocument document(xml);
+    auto root = document.getDocumentElement();
+    if (root == nullptr) error = "Cannot parse " + name + ": " + document.getLastParseError();
     return root;
 }
 }

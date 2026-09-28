@@ -49,7 +49,7 @@ HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processo
         label->setColour(juce::Label::textColourId, juce::Colour(0xffdce4eb));
         addAndMakeVisible(*label);
     }
-    help.setText("Saved project snapshot • Save in Studio Pro to update", juce::dontSendNotification);
+    help.setText("Saved project snapshot - Save in Studio Pro to update", juce::dontSendNotification);
     help.setColour(juce::Label::textColourId, juce::Colour(0xffaebdca));
     path.setText("No project selected", juce::dontSendNotification);
     summary.setText("Open the .song file of your current project", juce::dontSendNotification);
@@ -143,7 +143,7 @@ void HubEditor::refreshSnapshot()
         }
         summary.setText(snapshot.documentTitle + "  |  " + juce::String(snapshot.trackCount) + " tracks  |  "
             + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
-        info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  •  " + snapshot.artist : ""),
+        info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
             juce::dontSendNotification);
         notes.setText("Notes: " + snapshot.notes.replaceCharacters("\r\n", "  "), juce::dontSendNotification);
     }

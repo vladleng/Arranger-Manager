@@ -80,3 +80,13 @@ add_executable(ArrangementTagTests tests/ArrangementTagTests.cpp)
 target_include_directories(ArrangementTagTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_features(ArrangementTagTests PRIVATE cxx_std_20)
 add_test(NAME ArrangementTagTests COMMAND ArrangementTagTests)
+
+add_executable(SongSnapshotTests tests/SongSnapshotTests.cpp src/SongSnapshot.cpp)
+target_include_directories(SongSnapshotTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(SongSnapshotTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+if(MSVC)
+    target_compile_options(SongSnapshotTests PRIVATE /utf-8)
+endif()
+target_link_libraries(SongSnapshotTests PRIVATE juce::juce_core
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+add_test(NAME SongSnapshotTests COMMAND SongSnapshotTests)
