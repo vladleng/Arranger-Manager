@@ -84,7 +84,14 @@ int main()
         && check(arranger::clipProgress(snapshot.events) == std::pair<int, int>{1, 2}, "Tagged clip progress mismatch")
         && check(arranger::clipProgress({snapshot.events[0], snapshot.events[1],
             arranger::SongEvent{.name = "Plain take"}}) == std::pair<int, int>{1, 2},
-            "Unmarked clip entered progress denominator");
+            "Unmarked clip entered progress denominator")
+        && check(arranger::managedTrackCount(snapshot) == 1 && arranger::songProgress(snapshot)
+            == std::pair<int, int>{0, 1}, "Unmarked track entered song progress");
+    auto markedSong = snapshot;
+    markedSong.tracks[1].notes = "DONE";
+    const auto additional = check(arranger::managedTrackCount(markedSong) == 2
+        && arranger::songProgress(markedSong) == std::pair<int, int>{1, 2},
+        "Marked track not included in song progress");
     file.deleteFile();
-    return passed ? 0 : 1;
+    return passed && additional ? 0 : 1;
 }

@@ -313,12 +313,14 @@ void HubEditor::refreshSnapshot()
     else
     {
         int audio = 0, midi = 0;
-        for (const auto& event : snapshot.events)
-        {
-            if (event.type == "AudioEvent") ++audio;
-            if (event.type == "MusicPart") ++midi;
-        }
-        summary.setText(snapshot.documentTitle + "  |  " + juce::String(snapshot.trackCount) + " tracks  |  "
+        for (const auto& track : snapshot.tracks)
+            if (arranger::managedTrack(track))
+                for (const auto& event : track.events)
+                {
+                    if (event.type == "AudioEvent") ++audio;
+                    if (event.type == "MusicPart") ++midi;
+                }
+        summary.setText(snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
             + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
         info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
             juce::dontSendNotification);
@@ -381,12 +383,14 @@ void HubEditor::updateHeader(const juce::String& selectedPath)
         return;
     }
     int audio = 0, midi = 0;
-    for (const auto& event : snapshot.events)
-    {
-        if (event.type == "AudioEvent") ++audio;
-        if (event.type == "MusicPart") ++midi;
-    }
-    summary.setText(snapshot.documentTitle + "  |  " + juce::String(snapshot.trackCount) + " tracks  |  "
+    for (const auto& track : snapshot.tracks)
+        if (arranger::managedTrack(track))
+            for (const auto& event : track.events)
+            {
+                if (event.type == "AudioEvent") ++audio;
+                if (event.type == "MusicPart") ++midi;
+            }
+    summary.setText(snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
         + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
     info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
         juce::dontSendNotification);
@@ -442,11 +446,14 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
     const bool expanded = catalogProject ? expandedSongs.contains(projectKey) : !collapsed.contains(projectKey);
     const auto title = song.documentTitle.isNotEmpty() ? song.documentTitle
         : songPath.isNotEmpty() ? juce::File(songPath).getFileNameWithoutExtension() : juce::String("Project");
+    int managedClips = 0;
+    for (const auto& track : song.tracks)
+        if (arranger::managedTrack(track)) managedClips += static_cast<int>(track.events.size());
     Row project {RowKind::project, title,
-        song.ok() ? juce::String(static_cast<int>(song.tracks.size())) + " tracks / "
-            + juce::String(static_cast<int>(song.events.size())) + " clips" : song.error,
+        song.ok() ? juce::String(arranger::managedTrackCount(song)) + " tracks / "
+            + juce::String(managedClips) + " clips" : song.error,
         {}, {}, {}, projectKey, depth, song.ok(), expanded};
-    const auto [projectDone, projectTotal] = arranger::clipProgress(song.events);
+    const auto [projectDone, projectTotal] = arranger::songProgress(song);
     project.done = projectDone;
     project.total = projectTotal;
     project.songPath = songPath;
@@ -476,13 +483,14 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
 
     const auto tracksKey = catalogProject ? key + ":tracks" : std::string("tracks");
     const auto tracksOpen = catalogProject ? expandedChildren.contains(tracksKey) : !collapsed.contains(tracksKey);
-    rows.push_back({RowKind::group, "Tracks", juce::String(static_cast<int>(song.tracks.size())) + " tracks", {}, {}, {},
+    rows.push_back({RowKind::group, "Tracks", juce::String(arranger::managedTrackCount(song)) + " tracks", {}, {}, {},
         tracksKey, depth + 1, true, tracksOpen});
     if (tracksOpen)
     {
         for (size_t i = 0; i < song.tracks.size(); ++i)
         {
             const auto& track = song.tracks[i];
+            if (!arranger::managedTrack(track)) continue;
             const std::string trackKey = (catalogProject ? key + ":" : std::string()) + "track:"
                 + (track.id.isNotEmpty() ? track.id.toStdString() : std::to_string(i));
             const auto trackOpen = catalogProject ? expandedChildren.contains(trackKey) : !collapsed.contains(trackKey);
