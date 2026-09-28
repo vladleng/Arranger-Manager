@@ -82,7 +82,9 @@ inline const char* label(Priority priority)
     }
 }
 
-// STATUS | P1 | optional note. Legacy GROUP:STATUS remains readable.
+// New clip names use STATUS or STATUS | optional note. Older STATUS | P1 | note
+// names remain readable, but the embedded priority is not shown in the project view.
+// Legacy GROUP:STATUS remains readable.
 // Unknown names are ordinary DAW events and are not counted as arrangement tags.
 inline Tag parse(std::string_view name)
 {
@@ -108,10 +110,18 @@ inline Tag parse(std::string_view name)
     if (result.status == Status::unmarked) return result;
 
     const auto second = name.find('|', pipe + 1);
-    const auto priorityText = name.substr(pipe + 1, second == std::string_view::npos ? second : second - pipe - 1);
-    result.priority = parsePriority(priorityText);
-    if (result.priority == Priority::none) return {};
-    if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
+    const auto first = trim(name.substr(pipe + 1, second == std::string_view::npos ? second : second - pipe - 1));
+    result.priority = parsePriority(first);
+    if (result.priority != Priority::none)
+    {
+        if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
+    }
+    else
+    {
+        const auto candidate = upper(first);
+        if (candidate.size() >= 2 && candidate[0] == 'P' && std::isdigit(static_cast<unsigned char>(candidate[1]))) return {};
+        result.note = trim(name.substr(pipe + 1));
+    }
     result.valid = true;
     return result;
 }

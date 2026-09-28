@@ -20,18 +20,6 @@ juce::Colour statusColor(arranger::Status s)
     }
 }
 
-juce::Colour priorityColor(arranger::Priority p)
-{
-    switch (p)
-    {
-        case arranger::Priority::p1: return juce::Colour(0xffdd5b61);
-        case arranger::Priority::p2: return juce::Colour(0xffed9844);
-        case arranger::Priority::p3: return juce::Colour(0xffd3a438);
-        case arranger::Priority::p4: return juce::Colour(0xff929aaa);
-        default: return juce::Colour(0xff56606a);
-    }
-}
-
 void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, const char* label)
 {
     g.setColour(colour);
@@ -41,16 +29,15 @@ void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, 
     g.drawText(label, bounds, juce::Justification::centred);
 }
 
-struct Columns { int status, priority, notes, notesWidth, position, nameWidth; bool showPosition; };
+struct Columns { int status, notes, notesWidth, position, nameWidth; bool showPosition; };
 Columns columnsFor(int width)
 {
     const bool wide = width >= 900;
-    const int nameWidth = std::max(175, static_cast<int>(width * (wide ? 0.36f : 0.42f)));
+    const int nameWidth = std::max(175, static_cast<int>(width * 0.42f));
     const int status = nameWidth + 8;
-    const int priority = status + 107;
-    const int notes = priority + 70;
+    const int notes = status + 107;
     const int position = width - 135;
-    return { status, priority, notes, std::max(1, (wide ? position : width) - notes - 10), position, nameWidth, wide };
+    return { status, notes, std::max(1, (wide ? position : width) - notes - 10), position, nameWidth, wide };
 }
 
 juce::Colour savedColour(const juce::String& saved)
@@ -87,7 +74,7 @@ std::vector<size_t> orderByStart(const Items& items)
 
 HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    heading.setText("Arranger Manager Hub 0.0i", juce::dontSendNotification);
+    heading.setText("Arranger Manager Hub 0.0j", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -141,8 +128,6 @@ void HubEditor::paint(juce::Graphics& g)
     g.drawText("NAME", juce::Rectangle<int> {header.getX() + 12, header.getY(), layout.nameWidth - 12, header.getHeight()},
         juce::Justification::centredLeft);
     g.drawText("STATUS", juce::Rectangle<int> {header.getX() + layout.status, header.getY(), 100, header.getHeight()},
-        juce::Justification::centredLeft);
-    g.drawText("PRIORITY", juce::Rectangle<int> {header.getX() + layout.priority, header.getY(), 75, header.getHeight()},
         juce::Justification::centredLeft);
     g.drawText("NOTES", juce::Rectangle<int> {header.getX() + layout.notes, header.getY(), layout.notesWidth, header.getHeight()},
         juce::Justification::centredLeft);
@@ -330,14 +315,17 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     {
         const auto label = "[" + section.name + "]";
         const int available = layout.nameWidth - titleX - 5;
-        if (available < 24) break;
-        const int pillWidth = std::min(available, std::min(130, static_cast<int>(label.length()) * 8 + 14));
-        const auto rect = juce::Rectangle<int> {titleX, 7, pillWidth, height - 14};
+        if (available < 35) break;
+        const auto circle = juce::Rectangle<float> {static_cast<float>(titleX), (height - 12.0f) * 0.5f, 12.0f, 12.0f};
         g.setColour(section.colour);
-        g.fillRoundedRectangle(rect.toFloat(), 5.0f);
-        g.setColour(section.colour.getBrightness() > 0.7f ? juce::Colours::black : juce::Colours::white);
-        g.drawFittedText(label, rect.reduced(5, 0), juce::Justification::centred, 1);
-        titleX += pillWidth + 5;
+        g.fillEllipse(circle);
+        g.setColour(juce::Colours::white.withAlpha(0.45f));
+        g.drawEllipse(circle, 1.0f);
+        titleX += 17;
+        const int labelWidth = std::min(available - 17, std::min(130, static_cast<int>(label.length()) * 8 + 4));
+        g.setColour(juce::Colour(0xffdce4eb));
+        g.drawText(label, juce::Rectangle<int> {titleX, 0, labelWidth, height}, juce::Justification::centredLeft, true);
+        titleX += labelWidth + 7;
     }
     g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
     const auto title = row.title + (row.detail.isNotEmpty() ? "   " + row.detail : "");
@@ -348,8 +336,6 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     {
         if (row.tag.valid)
             badge(g, {layout.status, 7, 90, height - 14}, statusColor(row.tag.status), arranger::label(row.tag.status));
-        if (row.tag.priority != arranger::Priority::none)
-            badge(g, {layout.priority, 7, 46, height - 14}, priorityColor(row.tag.priority), arranger::label(row.tag.priority));
     }
     else if (row.summary.isNotEmpty())
     {

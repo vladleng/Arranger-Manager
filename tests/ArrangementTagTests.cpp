@@ -32,5 +32,9 @@ int main()
     passed &= check(displayClipName("WIP", "Audio") == "Audio", "status-only title");
     passed &= check(displayClipName("WIP | P2 | Сделать 5 партий", "Audio") == "Сделать 5 партий", "tag note title");
     passed &= check(displayClipName("[Verse 2]", "Audio") == "[Verse 2]", "ordinary title preserved");
+    passed &= check(parse("WIP | Сделать 5 партий").valid && parse("WIP | Сделать 5 партий").priority == Priority::none,
+        "status and note without priority");
+    passed &= check(displayClipName("WIP | Сделать 5 партий", "Audio") == "Сделать 5 партий", "new clip title");
+    passed &= check(displayClipName("WAIT | микс | переход", "Audio") == "микс | переход", "note with separator");
     return passed ? 0 : 1;
 }
