@@ -11,13 +11,13 @@ struct SongEvent
 
 struct SongTrack
 {
-    juce::String id, name, mediaType;
+    juce::String id, name, mediaType, notes;
     std::vector<SongEvent> events;
 };
 
 struct TimelineItem
 {
-    juce::String name, start, length, timeFormat, type;
+    juce::String name, start, length, timeFormat, type, color;
 };
 
 struct SongSnapshot
@@ -31,4 +31,5 @@ struct SongSnapshot
 };
 
 SongSnapshot readSongSnapshot(const juce::File& song);
+std::vector<size_t> matchingSectionIndices(const SongSnapshot&, const SongEvent&);
 }

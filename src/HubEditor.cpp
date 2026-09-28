@@ -1,5 +1,6 @@
 #include "HubEditor.h"
 #include <algorithm>
+#include <cctype>
 #include <numeric>
 
 namespace
@@ -40,12 +41,24 @@ void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, 
     g.drawText(label, bounds, juce::Justification::centred);
 }
 
-struct Columns { int status, priority, position, nameWidth; bool showPosition; };
+struct Columns { int status, priority, notes, notesWidth, position, nameWidth; bool showPosition; };
 Columns columnsFor(int width)
 {
-    const bool wide = width >= 680;
-    const int status = wide ? width - 332 : width - 148;
-    return { status, wide ? width - 217 : width - 53, width - 135, status - 12, wide };
+    const bool wide = width >= 900;
+    const int nameWidth = std::max(175, static_cast<int>(width * (wide ? 0.36f : 0.42f)));
+    const int status = nameWidth + 8;
+    const int priority = status + 107;
+    const int notes = priority + 70;
+    const int position = width - 135;
+    return { status, priority, notes, std::max(1, (wide ? position : width) - notes - 10), position, nameWidth, wide };
+}
+
+juce::Colour sectionColour(const juce::String& saved)
+{
+    const auto value = saved.toStdString();
+    if (value.size() == 8 && std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isxdigit(c) != 0; }))
+        return juce::Colour(0xff000000u | static_cast<juce::uint32>(saved.getHexValue32()));
+    return juce::Colour(0xff586d83);
 }
 
 juce::String progress(const std::vector<arranger::SongEvent>& events)
@@ -74,7 +87,7 @@ std::vector<size_t> orderByStart(const Items& items)
 
 HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    heading.setText("Arranger Manager Hub 0.0g", juce::dontSendNotification);
+    heading.setText("Arranger Manager Hub 0.0h", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -131,6 +144,8 @@ void HubEditor::paint(juce::Graphics& g)
         juce::Justification::centredLeft);
     g.drawText("PRIORITY", juce::Rectangle<int> {header.getX() + layout.priority, header.getY(), 75, header.getHeight()},
         juce::Justification::centredLeft);
+    g.drawText("NOTES", juce::Rectangle<int> {header.getX() + layout.notes, header.getY(), layout.notesWidth, header.getHeight()},
+        juce::Justification::centredLeft);
     if (layout.showPosition)
         g.drawText("POSITION", juce::Rectangle<int> {header.getX() + layout.position, header.getY(), 130, header.getHeight()},
             juce::Justification::centredLeft);
@@ -167,7 +182,7 @@ void HubEditor::timerCallback()
 void HubEditor::refreshSnapshot()
 {
     const auto current = processor.getProjectPath();
-    if (current != lastPath) { collapsed.clear(); expandedSections.clear(); }
+    if (current != lastPath) collapsed.clear();
     lastPath = current;
     snapshot = {};
     rows.clear();
@@ -214,14 +229,21 @@ void HubEditor::rebuildRows()
 {
     rows.clear();
     if (!snapshot.ok()) return;
-    auto addClip = [this](const arranger::SongEvent& event, int depth, bool reference)
+    auto addClip = [this](const arranger::SongEvent& event, int depth)
     {
         const auto tag = arranger::parse(event.name.toStdString());
-        const auto name = tag.valid && !tag.note.empty()
+        auto name = tag.valid && !tag.note.empty()
             ? juce::String::fromUTF8(tag.note.c_str()) : event.name;
-        Row row { RowKind::clip, reference ? event.track + " / " + name : name,
+        Row row { RowKind::clip, name,
             event.type == "MusicPart" ? "MIDI" : "Audio", "pos " + event.start + "  len " + event.length,
             {}, tag, {}, depth };
+        for (auto index : arranger::matchingSectionIndices(snapshot, event))
+        {
+            const auto& section = snapshot.sections[index];
+            row.sections.push_back({section.name, sectionColour(section.color)});
+            const auto prefix = "[" + section.name + "]";
+            if (row.title.startsWith(prefix)) row.title = row.title.substring(prefix.length()).trimStart();
+        }
         rows.push_back(std::move(row));
     };
 
@@ -243,40 +265,9 @@ void HubEditor::rebuildRows()
             rows.push_back({RowKind::track, track.name,
                 juce::String(static_cast<int>(track.events.size())) + " clips / " + track.mediaType, {}, progress(track.events), {},
                 key, 2, !track.events.empty(), !collapsed.contains(key)});
+            rows.back().notes = track.notes.replaceCharacters("\r\n", "  ").trim();
             if (collapsed.contains(key)) continue;
-            for (auto index : orderByStart(track.events)) addClip(track.events[index], 3, false);
-        }
-    }
-
-    rows.push_back({RowKind::group, "Arrangement", juce::String(static_cast<int>(snapshot.sections.size())) + " sections", {}, {}, {},
-        "arrangement", 1, true, !collapsed.contains("arrangement")});
-    if (!collapsed.contains("arrangement"))
-    {
-        for (auto index : orderByStart(snapshot.sections))
-        {
-            const auto& section = snapshot.sections[index];
-            const std::string key = "section:" + section.start.toStdString() + ":" + section.name.toStdString();
-            const double start = section.start.getDoubleValue();
-            const double end = start + section.length.getDoubleValue();
-            std::vector<arranger::SongEvent> related;
-            if (end > start)
-                for (const auto& event : snapshot.events)
-                {
-                    const double eventStart = event.start.getDoubleValue();
-                    if (eventStart < end && eventStart + event.length.getDoubleValue() > start)
-                        related.push_back(event);
-                }
-            rows.push_back({RowKind::section, section.name, juce::String(static_cast<int>(related.size())) + " clips",
-                "pos " + section.start + "  len " + section.length, progress(related), {},
-                key, 2, !related.empty(), expandedSections.contains(key)});
-            if (expandedSections.contains(key))
-            {
-                std::stable_sort(related.begin(), related.end(), [](const auto& a, const auto& b)
-                {
-                    return a.start.getDoubleValue() < b.start.getDoubleValue();
-                });
-                for (const auto& event : related) addClip(event, 3, true);
-            }
+            for (auto index : orderByStart(track.events)) addClip(track.events[index], 3);
         }
     }
 
@@ -296,14 +287,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent&)
     const auto& row = rows[static_cast<size_t>(index)];
     if (!row.expandable) return;
     const auto key = row.key;
-    if (row.kind == RowKind::section)
-    {
-        if (!expandedSections.erase(key)) expandedSections.insert(key);
-    }
-    else
-    {
-        if (!collapsed.erase(key)) collapsed.insert(key);
-    }
+    if (!collapsed.erase(key)) collapsed.insert(key);
     rebuildRows();
     list.updateContent();
     list.repaint();
@@ -330,8 +314,23 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     const int textX = x + (row.expandable ? 18 : 9);
     g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
     g.setFont(juce::FontOptions(14.0f, parent ? juce::Font::bold : juce::Font::plain));
+    int titleX = textX;
+    for (const auto& section : row.sections)
+    {
+        const auto label = "[" + section.name + "]";
+        const int available = layout.nameWidth - titleX - 5;
+        if (available < 24) break;
+        const int pillWidth = std::min(available, std::min(130, g.getCurrentFont().getStringWidth(label) + 14));
+        const auto rect = juce::Rectangle<int> {titleX, 7, pillWidth, height - 14};
+        g.setColour(section.colour);
+        g.fillRoundedRectangle(rect.toFloat(), 5.0f);
+        g.setColour(section.colour.getBrightness() > 0.7f ? juce::Colours::black : juce::Colours::white);
+        g.drawFittedText(label, rect.reduced(5, 0), juce::Justification::centred, 1);
+        titleX += pillWidth + 5;
+    }
+    g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
     const auto title = row.title + (row.detail.isNotEmpty() ? "   " + row.detail : "");
-    g.drawFittedText(title, juce::Rectangle<int> {textX, 0, std::max(1, layout.nameWidth - textX), height},
+    g.drawFittedText(title, juce::Rectangle<int> {titleX, 0, std::max(1, layout.nameWidth - titleX), height},
         juce::Justification::centredLeft, 1);
 
     if (row.kind == RowKind::clip)
@@ -346,6 +345,13 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
         g.setColour(juce::Colour(0xffaebdca));
         g.setFont(juce::FontOptions(12.0f));
         g.drawText(row.summary, juce::Rectangle<int> {layout.status, 0, 105, height}, juce::Justification::centredLeft);
+    }
+    if (row.notes.isNotEmpty())
+    {
+        g.setColour(juce::Colour(0xffdce4eb));
+        g.setFont(juce::FontOptions(12.0f));
+        g.drawText(row.notes, juce::Rectangle<int> {layout.notes, 0, layout.notesWidth, height},
+            juce::Justification::centredLeft, true);
     }
     if (layout.showPosition && row.position.isNotEmpty())
     {

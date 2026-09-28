@@ -28,6 +28,10 @@ int main()
         "<Attribute id=\"Media:Artist\" value=\"Artist\"/>"
         "<Attribute id=\"Document:Notes\" value=\"notes.txt\"/></MetaInformation>");
     add(zip, "notes.txt", "Project notes");
+    add(zip, "notepad.xml", "<NotepadData>"
+        "<NotepadItem id=\"track-1\" title=\"Drums\" text=\"Record five parts\"/>"
+        "<NotepadItem id=\"track-2\" title=\"Keys\" text=\"\"/>"
+        "</NotepadData>");
     add(zip, "Song/song.xml", std::string("\xEF\xBB\xBF") +
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
@@ -37,7 +41,7 @@ int main()
         "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
         "<List x:id=\"Events\"><MusicPart name=\"DONE | P1\" start=\"40\" length=\"4\"/>"
         "</List></MediaTrack>"
-        "<ArrangerTrack><ArrangerEvent name=\"Intro\" start=\"32\" length=\"8\"/>"
+        "<ArrangerTrack color=\"FF8A6B32\"><ArrangerEvent name=\"Intro\" start=\"32\" length=\"8\" color=\"FFFFAD2A\"/>"
         "<ArrangerEvent name=\"Verse\" start=\"40\" length=\"8\"/></ArrangerTrack>"
         "<MarkerTrack><MarkerEvent name=\"Start\"/><MarkerEvent name=\"End\" start=\"48\"/>"
         "</MarkerTrack></List></Attributes></Song>");
@@ -53,11 +57,17 @@ int main()
         && check(snapshot.artist == "Artist" && snapshot.notes == "Project notes", "Metadata mismatch")
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
         && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
-        && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro", "Arrangement mismatch")
+        && check(snapshot.tracks[0].notes == "Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
+        && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro"
+            && snapshot.sections[0].color == "FFFFAD2A" && snapshot.sections[1].color == "FF8A6B32", "Arrangement mismatch")
         && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
             && snapshot.markers[1].name == "End", "Marker mismatch")
         && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "Drums", "Audio event mismatch")
-        && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch");
+        && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
+        && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
+        && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")
+        && check(arranger::matchingSectionIndices(snapshot,
+            arranger::SongEvent{.start = "39", .length = "2"}) == std::vector<size_t>({0, 1}), "Boundary overlap mismatch");
     file.deleteFile();
     return passed ? 0 : 1;
 }

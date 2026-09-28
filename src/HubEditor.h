@@ -14,7 +14,8 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
-    enum class RowKind { project, group, track, clip, section, marker };
+    enum class RowKind { project, group, track, clip, marker };
+    struct SectionLabel { juce::String name; juce::Colour colour; };
     struct Row
     {
         RowKind kind;
@@ -23,6 +24,8 @@ private:
         std::string key;
         int depth = 0;
         bool expandable = false, expanded = false;
+        juce::String notes;
+        std::vector<SectionLabel> sections;
     };
     void timerCallback() override;
     void refreshSnapshot();
@@ -39,7 +42,6 @@ private:
     arranger::SongSnapshot snapshot;
     std::vector<Row> rows;
     std::set<std::string> collapsed;
-    std::set<std::string> expandedSections;
     juce::String lastPath;
     juce::int64 lastModified = -1, lastSize = -1;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HubEditor)

@@ -1,4 +1,6 @@
 #include "SongSnapshot.h"
+#include <algorithm>
+#include <map>
 
 namespace arranger
 {
@@ -82,6 +84,21 @@ SongSnapshot readSongSnapshot(const juce::File& song)
         if (!snapshot.ok()) return snapshot;
     }
 
+    std::map<juce::String, juce::String> trackNotes;
+    if (zip.getIndexOfFileName("notepad.xml") >= 0)
+    {
+        auto notepad = parse(readEntry(zip, "notepad.xml", 2 * 1024 * 1024, snapshot.error),
+            "notepad.xml", snapshot.error);
+        if (!snapshot.ok() || notepad == nullptr || !notepad->hasTagName("NotepadData"))
+        {
+            if (snapshot.ok()) snapshot.error = "Invalid notepad.xml";
+            return snapshot;
+        }
+        for (auto* item = notepad->getFirstChildElement(); item != nullptr; item = item->getNextElement())
+            if (item->hasTagName("NotepadItem") && item->hasAttribute("id"))
+                trackNotes[item->getStringAttribute("id")] = item->getStringAttribute("text");
+    }
+
     auto songXml = parse(readEntry(zip, "Song/song.xml", 64 * 1024 * 1024, snapshot.error), "Song/song.xml", snapshot.error);
     if (!snapshot.ok() || songXml == nullptr || !songXml->hasTagName("Song"))
     {
@@ -108,6 +125,7 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                         entry.start = item->getStringAttribute("start", "0");
                         entry.length = item->getStringAttribute("length", "0");
                         entry.timeFormat = item->getStringAttribute("timeFormat", track->getStringAttribute("timeFormat"));
+                        entry.color = item->getStringAttribute("color", track->getStringAttribute("color"));
                         (arrangerTrack ? snapshot.sections : snapshot.markers).push_back(std::move(entry));
                     }
                     continue;
@@ -118,6 +136,8 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                 songTrack.id = track->getStringAttribute("trackID");
                 songTrack.name = track->getStringAttribute("name");
                 songTrack.mediaType = track->getStringAttribute("mediaType");
+                if (auto note = trackNotes.find(songTrack.id); note != trackNotes.end())
+                    songTrack.notes = note->second;
                 for (auto* events = track->getFirstChildElement(); events != nullptr; events = events->getNextElement())
                 {
                     if (!events->hasTagName("List") || events->getStringAttribute("x_id") != "Events") continue;
@@ -142,5 +162,25 @@ SongSnapshot readSongSnapshot(const juce::File& song)
         }
     }
     return snapshot;
+}
+
+std::vector<size_t> matchingSectionIndices(const SongSnapshot& snapshot, const SongEvent& event)
+{
+    std::vector<size_t> matches;
+    const double clipStart = event.start.getDoubleValue();
+    const double clipEnd = clipStart + event.length.getDoubleValue();
+    if (clipEnd <= clipStart) return matches;
+    for (size_t i = 0; i < snapshot.sections.size(); ++i)
+    {
+        const auto& section = snapshot.sections[i];
+        const double start = section.start.getDoubleValue();
+        const double end = start + section.length.getDoubleValue();
+        if (end > start && clipStart < end && clipEnd > start) matches.push_back(i);
+    }
+    std::stable_sort(matches.begin(), matches.end(), [&](size_t a, size_t b)
+    {
+        return snapshot.sections[a].start.getDoubleValue() < snapshot.sections[b].start.getDoubleValue();
+    });
+    return matches;
 }
 }
