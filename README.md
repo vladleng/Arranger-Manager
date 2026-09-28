@@ -59,6 +59,8 @@ Hub показывает Info, Notes и основные аудио/MIDI соб�
 
 В [Hub 0.0k fix1](docs/HUB-0.0k.md) текст из названия клипа перенесён в Notes, а перед Status появилась колонка Type с синим значком аудио или оранжевым значком MIDI. Цвета областей и дорожек преобразуются из сохранённого проектом порядка каналов ABGR.
 
+В Hub 0.0k fix2 цветные кружки всех треков выровнены по вертикали, а Audio/Music перенесены из подписи трека в Type. Значок Music обозначает инструментальную дорожку клавишами пианино.
+
 ### Stage 0 prototype
 
 `Arranger Manager Inspector 0.0a` is a separate, read-only ARA VST3. It lists the region sequences and playback regions visible to its ARA document controller, including explicit names/colors, position, duration and live update counter. It reuses the JUCE 9.0.2 + ARA SDK 2.3.0 integration pattern proven in Smart Voicing without carrying over the harmonizer or its shared-memory bridge.

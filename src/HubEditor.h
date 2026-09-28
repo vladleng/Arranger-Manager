@@ -28,6 +28,7 @@ private:
         std::vector<SectionLabel> sections;
         juce::Colour trackColour;
         bool midi = false;
+        juce::String mediaType;
     };
     void timerCallback() override;
     void refreshSnapshot();
