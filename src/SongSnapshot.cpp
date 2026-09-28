@@ -1,11 +1,28 @@
 #include "SongSnapshot.h"
 #include <algorithm>
 #include <map>
+#include <numeric>
+#include <optional>
 
 namespace arranger
 {
 namespace
 {
+std::optional<MarkerNote> parseMarkerNote(juce::String name)
+{
+    name = name.trim();
+    if (!name.startsWithIgnoreCase("mk")) return std::nullopt;
+    int index = 2;
+    while (index < name.length() && juce::CharacterFunctions::isDigit(name[index])) ++index;
+    if (index == 2 || name.substring(2, index).getIntValue() < 1) return std::nullopt;
+    if (index < name.length() && name[index] != ' ' && name[index] != '\t'
+        && name[index] != '|' && name[index] != ':') return std::nullopt;
+    auto text = name.substring(index).trim();
+    if (text.startsWithChar('|') || text.startsWithChar(':')) text = text.substring(1).trim();
+    if (text.isEmpty()) return std::nullopt;
+    return MarkerNote {"mk" + name.substring(2, index), text};
+}
+
 juce::String readEntry(juce::ZipFile& zip, const juce::String& name, juce::int64 limit, juce::String& error)
 {
     const auto index = zip.getIndexOfFileName(name);
@@ -183,5 +200,27 @@ std::vector<size_t> matchingSectionIndices(const SongSnapshot& snapshot, const S
         return snapshot.sections[a].start.getDoubleValue() < snapshot.sections[b].start.getDoubleValue();
     });
     return matches;
+}
+
+std::vector<MarkerNote> matchingMarkerNotes(const SongSnapshot& snapshot, const SongEvent& event)
+{
+    std::vector<MarkerNote> notes;
+    const double clipStart = event.start.getDoubleValue();
+    const double clipEnd = clipStart + event.length.getDoubleValue();
+    if (clipEnd <= clipStart) return notes;
+    std::vector<size_t> order(snapshot.markers.size());
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
+    {
+        return snapshot.markers[a].start.getDoubleValue() < snapshot.markers[b].start.getDoubleValue();
+    });
+    for (const auto index : order)
+    {
+        const auto& marker = snapshot.markers[index];
+        const double position = marker.start.getDoubleValue();
+        if (position < clipStart || position >= clipEnd) continue;
+        if (const auto note = parseMarkerNote(marker.name)) notes.push_back(*note);
+    }
+    return notes;
 }
 }

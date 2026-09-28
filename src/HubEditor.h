@@ -55,6 +55,7 @@ private:
     void showStatusMenu(const juce::String& songPath);
     void catalogChanged();
     int getNumRows() override { return static_cast<int>(rows.size()); }
+    juce::String getTooltipForRow(int row) override;
     void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
     void listBoxItemClicked(int, const juce::MouseEvent&) override;
 
@@ -65,6 +66,7 @@ private:
     juce::Label heading, path, summary, info, notes, help;
     juce::TextButton choose { "Open .song" }, newFolder { "New folder" }, refresh { "Refresh" };
     juce::ListBox list { "Project events", this };
+    juce::TooltipWindow tooltipWindow { this, 650 };
     std::unique_ptr<juce::FileChooser> chooser;
     arranger::SongSnapshot snapshot;
     std::vector<Row> rows;

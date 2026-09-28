@@ -45,7 +45,10 @@ int main()
         "</List></MediaTrack>"
         "<ArrangerTrack color=\"FF8A6B32\"><ArrangerEvent name=\"Intro\" start=\"32\" length=\"8\" color=\"FFFFAD2A\"/>"
         "<ArrangerEvent name=\"Verse\" start=\"40\" length=\"8\"/></ArrangerTrack>"
-        "<MarkerTrack><MarkerEvent name=\"Start\"/><MarkerEvent name=\"End\" start=\"48\"/>"
+        "<MarkerTrack><MarkerEvent name=\"Start\"/><MarkerEvent name=\"mk1 | Record drums\" start=\"32\"/>"
+        "<MarkerEvent name=\"mk2 Check timing\" start=\"34\"/>"
+        "<MarkerEvent name=\"Ordinary marker\" start=\"35\"/>"
+        "<MarkerEvent name=\"mk3: Next clip\" start=\"40\"/><MarkerEvent name=\"End\" start=\"48\"/>"
         "</MarkerTrack></List></Attributes></Song>");
 
     {
@@ -73,12 +76,24 @@ int main()
         && check(arranger::studioProColour("FFFF2A94") == 0xff942affu,
             "Studio Pro track ABGR conversion mismatch")
         && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
-        && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
-            && snapshot.markers[1].name == "End", "Marker mismatch")
+        && check(snapshot.markers.size() == 6 && snapshot.markers[0].start == "0"
+            && snapshot.markers[5].name == "End", "Marker mismatch")
         && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")
+        && check(arranger::matchingMarkerNotes(snapshot, snapshot.events[0]).size() == 2
+            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[0].label == "mk1"
+            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[0].text == "Record drums"
+            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[1].label == "mk2"
+            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[1].text == "Check timing",
+            "Multiple marker notes did not attach to first clip")
+        && check(arranger::matchingMarkerNotes(snapshot, snapshot.events[1]).size() == 1
+            && arranger::matchingMarkerNotes(snapshot, snapshot.events[1])[0].label == "mk3",
+            "Marker at clip end must attach to next clip")
+        && check(arranger::matchingMarkerNotes(snapshot,
+            arranger::SongEvent{.start = "33", .length = "4"}).size() == 1,
+            "Marker over overlapping clip must also attach to it")
         && check(arranger::matchingSectionIndices(snapshot,
             arranger::SongEvent{.start = "39", .length = "2"}) == std::vector<size_t>({0, 1}), "Boundary overlap mismatch")
         && check(arranger::clipProgress(snapshot.events) == std::pair<int, int>{1, 2}, "Tagged clip progress mismatch")

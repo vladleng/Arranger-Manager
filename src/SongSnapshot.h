@@ -20,6 +20,11 @@ struct TimelineItem
     juce::String name, start, length, timeFormat, type, color;
 };
 
+struct MarkerNote
+{
+    juce::String label, text;
+};
+
 struct SongSnapshot
 {
     juce::String documentTitle, mediaTitle, artist, notes, error;
@@ -32,4 +37,5 @@ struct SongSnapshot
 
 SongSnapshot readSongSnapshot(const juce::File& song);
 std::vector<size_t> matchingSectionIndices(const SongSnapshot&, const SongEvent&);
+std::vector<MarkerNote> matchingMarkerNotes(const SongSnapshot&, const SongEvent&);
 }
