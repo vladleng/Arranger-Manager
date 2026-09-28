@@ -1,2 +1,4 @@
 /build/
 /package/
+__pycache__/
+*.pyc

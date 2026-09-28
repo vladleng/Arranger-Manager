@@ -15,14 +15,19 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests --parallel 2
       - name: Test project reader and name parser
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+          python -m unittest discover -s tests -p test_edit_song_copy.py -v
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1 fix4" | Out-Null
-          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1 fix4"
-          Copy-Item -Force "docs/HUB-0.1-fix4.md" "package/Arranger Manager 0.1 fix4"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1a" | Out-Null
+          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1a"
+          Copy-Item -Force "docs/STAGE3-0.1a.md" "package/Arranger Manager 0.1a"
+          Copy-Item -Force "tools/edit_song_copy.py" "package/Arranger Manager 0.1a"
+          Copy-Item -Force "tools/read_song_inventory.py" "package/Arranger Manager 0.1a"
+          Copy-Item -Force "tools/read_song_metadata.py" "package/Arranger Manager 0.1a"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-0.1-fix4-Windows-App
+          name: Arranger-Manager-0.1a-Windows-App-and-Copy-Tool
           path: package
