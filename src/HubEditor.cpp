@@ -320,7 +320,7 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
         const auto label = "[" + section.name + "]";
         const int available = layout.nameWidth - titleX - 5;
         if (available < 24) break;
-        const int pillWidth = std::min(available, std::min(130, g.getCurrentFont().getStringWidth(label) + 14));
+        const int pillWidth = std::min(available, std::min(130, static_cast<int>(label.length()) * 8 + 14));
         const auto rect = juce::Rectangle<int> {titleX, 7, pillWidth, height - 14};
         g.setColour(section.colour);
         g.fillRoundedRectangle(rect.toFloat(), 5.0f);
