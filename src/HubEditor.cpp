@@ -173,5 +173,5 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     if (!showTime) return;
     g.setColour(juce::Colour(0xffaebdca));
     g.drawText("pos " + row.event.start + "  len " + row.event.length,
-        {width - 155, 0, 145, height}, juce::Justification::centredRight);
+        juce::Rectangle<int> {width - 155, 0, 145, height}, juce::Justification::centredRight);
 }
