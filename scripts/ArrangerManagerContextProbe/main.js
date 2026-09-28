@@ -36,14 +36,16 @@ function inspectObject(object) {
         var value = safeValue((function (k) { return function () { return object[k]; }; })(key));
         if (scalar(value) !== null) result.properties[key] = value;
     }
-    for (var j = 0; j < parameters.length; j++) {
-        var paramName = parameters[j];
-        var parameter = safeValue((function (k) { return function () { return object.findParameter(k); }; })(paramName));
-        if (!parameter) continue;
-        var formatted = safeValue((function (p) { return function () { return p.string; }; })(parameter));
-        var numeric = safeValue((function (p) { return function () { return p.value; }; })(parameter));
-        if (scalar(formatted) !== null || scalar(numeric) !== null) {
-            result.parameters[paramName] = { string: scalar(formatted), value: scalar(numeric) };
+    if (typeof object.findParameter === "function") {
+        for (var j = 0; j < parameters.length; j++) {
+            var paramName = parameters[j];
+            var parameter = safeValue((function (k) { return function () { return object.findParameter(k); }; })(paramName));
+            if (!parameter) continue;
+            var formatted = safeValue((function (p) { return function () { return p.string; }; })(parameter));
+            var numeric = safeValue((function (p) { return function () { return p.value; }; })(parameter));
+            if (scalar(formatted) !== null || scalar(numeric) !== null) {
+                result.parameters[paramName] = { string: scalar(formatted), value: scalar(numeric) };
+            }
         }
     }
     return result;
