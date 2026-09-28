@@ -15,4 +15,16 @@ Copy `ArrangerManagerContextProbe.package` to `C:\Program Files\Fender\Studio Pr
 
 All actions only inspect the current selection or active document and write diagnostic files. They do not rename, recolor, create, or move any DAW objects. The JSON is not yet consumed by the ARA plug-in. It is a capability check before adding a live transport and synchronization rules. Files may reveal song structure, notes, and folder paths; review their contents before sharing.
 
-The public PreSonus/Fender VST3 context extension lists document identity, name, document folder, and audio folder, but no Info or Notes fields. The scripting lookup above is exploratory and does not prove those fields are exposed. If they are absent, a read-only parser of the saved `.song` archive is the next route; it reflects the last saved state, not unsaved edits. That route needs a representative Studio Pro 8 `.song` file to identify the exact XML fields.
+The public PreSonus/Fender VST3 context extension lists document identity, name, document folder, and audio folder, but no Info or Notes fields. The scripting lookup above did not expose those fields in the first Studio Pro 8 test. A read-only parser of the saved `.song` archive provides the last saved state, not unsaved edits.
+
+## Saved project metadata (Studio Pro 8.1.2 sample)
+
+The supplied `Arranger Manager.song` is a ZIP archive. Its `metainfo.xml` has `Document:*` and `Media:*` attributes, including separate `Document:Title` (file/session title) and `Media:Title` (Info title). `Document:Notes` points to `notes.txt`, which contains the session notebook. `notepad.xml` contains channel/track notes as `NotepadItem` elements with an ID, title, and text; a track ID in `Song/song.xml` matches the corresponding notepad ID in this sample. These are distinct from event-level ARA state and should not be conflated with `Inspector.Notes` UI visibility.
+
+To extract the saved snapshot without opening or changing the song:
+
+```sh
+python tools/read_song_metadata.py "Arranger Manager.song" -o metadata.json
+```
+
+The script reads only three small archive members (`metainfo.xml`, referenced `notes.txt`, `notepad.xml`) and emits `document`, `media`, `notes`, and `trackNotes`. It does not extract presets, media, or artwork. This verifies saved-file access on the supplied 8.1.2 sample; for a live bridge, use the host document identity/folder to locate the current `.song` and refresh only after a save. Unsaved edits to Info/Notes cannot be inferred from the saved file. The file format is not documented as a stable public API, so handle absent/changed entries and test future Studio Pro releases.
