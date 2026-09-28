@@ -1,306 +1,34 @@
-# Arranger Manager — Roadmap
+# Arranger Manager — план после 0.1
 
-## Общий принцип
+**Обновлено 2026-09-28.** Нумерация ниже соответствует текущим Issues и сборкам Windows-приложения. Старый план `Stage 0–10` описывал исследовательскую ARA-ветку и не задаёт порядок реализации нового Hub. Историю можно посмотреть в git и документах `STAGE0-TEST.md` / `HUB-0.0*.md`.
 
-Roadmap хранит общую последовательность развития проекта. Конкретная реализация каждого этапа разбивается на GitHub Issues.
+## Завершено в коде, ожидает проверки пользователем
 
-**Решение 2026-09-28:** разметка строится из существующих событий и метаданных самого проекта. Упоминания служебных silent-audio дорожек в Stage 0 ниже относятся к выполненному исследованию ARA, а не к обязательному пользовательскому сценарию. Чтение аудио- и MIDI-событий из сохранённого тестового `.song` подтверждено. Для Stage 1 проверить доступный способ переименовывать обычные события из Hub через Studio Pro.
+| Результат | Где | Состояние |
+| --- | --- | --- |
+| Чтение сохранённого `.song`: клипы audio/MIDI, Info/Notes, треки, секции, маркеры | 0.0f–0.0k | Подтверждено на тестовом проекте и в CI |
+| Отдельное приложение, каталог `.song`, папки, PROG | 0.0l–0.0m, PR #16 | Windows CI пройден; PR в цепочке |
+| Независимые ручные статусы песни/трека, закрытые вложенные группы, `DONE / все клипы` | 0.1, PR #20, issue #17 | Windows Build #35 пройден; пользовательский тест 0.1 ещё нужен |
 
-```text
-Stage 0  Feasibility / ARA Inspector
-Stage 1  Arrangement Map Parser
-Stage 2  Coverage + Gap Engine
-Stage 3  Dashboard MVP
-Stage 4  Notes / Tasks
-Stage 5  Section-aware workflow
-Stage 6  Track Agents
-Stage 7  Advanced progress analysis
-Stage 8  Session History
-Stage 9  Harma Waves integration
-Stage 10 UX / Stability / 1.0
-```
+После проверки 0.1 обновить критерии #17 и решить, как влить последовательность PR. Текущий каталог хранится локально, а `.song` читается без записи. Миграция этих ручных полей в проект пока не разработана.
 
----
+## Продолжение каталога — #7
 
-## Stage 0 — ARA Inspector / Feasibility
+Есть просмотр нескольких проектов и группировка в папки. Остались поиск/фильтры, надёжная работа с большими каталогами, показ времени сохранения и приоритет **песни** P1–P4. Способ хранения приоритета и переносимости каталога следует решить до реализации; не копировать приоритет из старого имени клипа.
 
-Цель: экспериментально подтвердить, какие region-level данные Studio Pro реально предоставляет ARA-плагину.
+## Этап 3 — закрытый `.song`, #8
 
-Проверить:
+Исследовать запись **на копии закрытого проекта**. Сначала поменять одно имя `AudioEvent` и одно `MusicPart`, сохранить все прочие ZIP entries, проверить открытие и повторное сохранение в Studio Pro. Событие нельзя идентифицировать одним `clipID`: после split/copy значения повторяются. Нужны проверка неизменности исходного файла, резервная копия, временный архив, валидация ZIP/XML и отказ при неоднозначности. Только после успешной host проверки рассматривать запись в оригинал и расширение на Info/Notes/заметки. При открытом проекте правки остаются в самой DAW.
 
-- `RegionSequence`;
-- `PlaybackRegion` для настоящего silent audio event;
-- start position;
-- duration;
-- имя region/event;
-- color;
-- live updates после rename;
-- move;
-- resize;
-- recolor;
-- copy / duplicate;
-- split;
-- overlapping events;
-- scope нескольких служебных tracks;
-- muted track/event;
-- поведение silent audio event, который используется только как служебный маркер.
+## Этап 4 — формат `.show`, #19
 
-Acceptance criteria:
+Сначала получить обезличенный или тестовый `.show`, исследовать его контейнер и структуру. Определить связи Show → песни, порядок, названия, статусы/заметки и поведение при сохранении. Начать с чтения; отдельное решение о записи принимать только после проверки формата и теста на копии. Не предполагать, что `.show` совпадает с `.song`.
 
-- стабильно читаются start + duration;
-- можно различить несколько служебных regions;
-- найден надёжный способ идентифицировать логический тип/status region;
-- изменение region на timeline отражается в Inspector;
-- понятна модель scope: какие RegionSequence доступны данной ARA-инстанции.
+## Позже, по отдельным Issues
 
-Color желателен, но не обязателен для MVP.
+- Временное покрытие и gaps по секциям/группам, с нормализацией формата времени, объединением пересекающихся интервалов и выбранным рабочим диапазоном. **Не смешивать с PROG 0.1**, который считает клипы.
+- Заметки/задачи с привязкой к проекту, дорожке, секции или позиции; дашборд внимания.
+- История снимков, анализ содержимого MIDI/CC, опциональные Track Agents и интеграция с Harma Waves только при доказанной потребности.
+- ARA 2 возвращать в основной путь лишь при конкретной функции, недоступной через сохранённый `.song` или будущий проверенный host API.
 
-### Ветвление после теста
-
-Если central ARA instance видит все нужные служебные tracks:
-
-```text
-central ARA reader
-→ Arrangement Map
-```
-
-Если scope ограничен:
-
-```text
-ARA reader/agent per service track
-→ shared project state
-→ Arranger Manager Hub
-```
-
-Если region metadata недостаточно:
-
-```text
-minimal Track/Map Agents
-+ own plugin state
-+ ARA only for Chord / Key / Tempo / Meter
-```
-
----
-
-## Stage 1 — Arrangement Map Parser
-
-Цель: превратить существующие audio events и MIDI/instrument parts в внутреннюю модель проекта без служебных дорожек. Оба типа подтверждены на сохранённом тестовом `.song`.
-
-Минимальная модель:
-
-```text
-ArrangementRegion
-├ id
-├ category / group
-├ status
-├ start
-├ duration
-├ end
-└ optional color
-```
-
-Поддержать базовые статусы:
-
-```text
-TODO
-DRAFT
-WAIT
-DONE
-```
-
-Поддержать выбранный формат имени, например:
-
-```text
-BRASS:DONE
-STRINGS:DRAFT
-```
-
----
-
-## Stage 2 — Coverage + Gap Engine
-
-Цель: вычислять степень заполнения рабочего диапазона.
-
-Нужно:
-
-- union overlapping intervals;
-- coverage 0–100%;
-- gaps;
-- расчёт отдельно по group/status;
-- защита от двойного счёта overlapping regions;
-- определение рабочего диапазона через `ARRANGEMENT RANGE` или manual Start/End.
-
-Пример результата:
-
-```text
-Brass: 72%
-Missing: bars 41–48, 73–80
-```
-
----
-
-## Stage 3 — Dashboard MVP
-
-Первый действительно полезный пользовательский интерфейс.
-
-Показывать:
-
-- общий progress;
-- progress по группам;
-- gaps;
-- Draft / Review / Done;
-- Attention list;
-- timeline-style overview.
-
-Главный принцип UI:
-
-> Пользователь должен за несколько секунд понять, что в аранжировке ещё не закончено.
-
----
-
-## Stage 4 — Notes / Tasks
-
-Добавить ручные задачи и заметки, привязанные к DAW-контексту.
-
-Возможные связи:
-
-- Project;
-- group / track;
-- section;
-- time position / range;
-- chord;
-- instrument;
-- status.
-
-Это превращает Arranger Manager в музыкальный issue tracker внутри DAW.
-
----
-
-## Stage 5 — Section-aware workflow
-
-Добавить логические секции композиции:
-
-```text
-Intro
-Verse
-Chorus
-Bridge
-Solo
-Outro
-```
-
-Источник section boundaries должен определяться отдельно и не должен предполагать наличие стандартного ARA marker API.
-
-Возможные варианты:
-
-- служебные section regions;
-- собственная разметка Arranger Manager;
-- host-specific интеграция в будущем.
-
-Dashboard сможет показывать матрицу:
-
-```text
-              Verse  Chorus  Bridge  Outro
-Brass          72%    100%     38%     0%
-Strings         0%     68%     22%     0%
-```
-
----
-
-## Stage 6 — Track Agents
-
-Опциональный более глубокий слой.
-
-Маленькие VST3 Track Agents смогут сообщать Hub:
-
-- MIDI activity;
-- фактически звучащие области;
-- CC1 / CC11;
-- articulation / keyswitch activity;
-- другие доступные track-level признаки.
-
-Цель — добавить `Content Coverage`, не ломая простоту базовой Arrangement Map.
-
----
-
-## Stage 7 — Advanced Progress Analysis
-
-Разделить стадии готовности партии:
-
-```text
-Notes
-Voicing
-Voice Leading
-Articulations
-Dynamics
-Humanization
-Final Review
-```
-
-Часть статусов manual, часть может определяться автоматически.
-
----
-
-## Stage 8 — Session History
-
-Сохранять snapshots состояния Arranger Manager и показывать изменения между рабочими сессиями.
-
-Пример:
-
-```text
-+ Brass added to Chorus 2
-+ Strings: Draft → Review
-+ arrangement extended by 8 bars
-+ overall progress 64% → 71%
-```
-
-История принадлежит Arranger Manager и не должна зависеть от наличия DAW change log.
-
----
-
-## Stage 9 — Harma Waves Integration
-
-Опциональная интеграция через shared project context.
-
-Потенциально передавать:
-
-- voicing type;
-- range warnings;
-- voice-leading warnings;
-- harmonic/tension warnings;
-- musical processing status.
-
-Arranger Manager должен оставаться полезным и без Harma Waves.
-
----
-
-## Stage 10 — UX / Stability / 1.0
-
-- сохранение project state;
-- устойчивость shared state;
-- обработка edge cases;
-- оптимизация;
-- финальный UI;
-- regression tests;
-- Studio Pro workflow validation;
-- документация пользователя.
-
----
-
-## Не включать в ранний MVP
-
-- AI planner;
-- cloud sync;
-- автоматический анализ всех MIDI tracks;
-- сложную совместную работу;
-- обязательную интеграцию с Harma Waves;
-- сложную аналитику expression/articulation до доказательства базовой модели.
-
-Главное раннее доказательство идеи:
-
-```text
-service regions
-→ reliable timeline map
-→ coverage / gaps
-→ useful Dashboard
-```
+Текущее поведение и источники данных: [CONCEPT](CONCEPT.md). Быстрый вход в код и PR: [HANDOFF](HANDOFF.md).
