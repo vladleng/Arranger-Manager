@@ -29,15 +29,41 @@ void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, 
     g.drawText(label, bounds, juce::Justification::centred);
 }
 
-struct Columns { int status, notes, notesWidth, position, nameWidth; bool showPosition; };
+struct Columns { int type, status, notes, notesWidth, position, nameWidth; bool showPosition; };
 Columns columnsFor(int width)
 {
     const bool wide = width >= 900;
-    const int nameWidth = std::max(175, static_cast<int>(width * 0.42f));
-    const int status = nameWidth + 8;
+    const int nameWidth = std::max(175, static_cast<int>(width * 0.40f));
+    const int type = nameWidth + 8;
+    const int status = type + 42;
     const int notes = status + 107;
     const int position = width - 135;
-    return { status, notes, std::max(1, (wide ? position : width) - notes - 10), position, nameWidth, wide };
+    return { type, status, notes, std::max(1, (wide ? position : width) - notes - 10), position, nameWidth, wide };
+}
+
+void mediaIcon(juce::Graphics& g, int x, int height, bool midi)
+{
+    const float left = static_cast<float>(x + 7);
+    const float top = (static_cast<float>(height) - 18.0f) * 0.5f;
+    g.setColour(midi ? juce::Colour(0xffed9844) : juce::Colour(0xff3b82f6));
+    g.fillRoundedRectangle(left, top, 18.0f, 18.0f, 4.0f);
+    g.setColour(juce::Colours::white);
+    if (midi)
+    {
+        g.fillRect(left + 3.0f, top + 6.0f, 12.0f, 7.0f);
+        g.setColour(juce::Colour(0xffed9844));
+        for (int key = 1; key < 4; ++key)
+            g.fillRect(left + 3.0f + 3.0f * static_cast<float>(key), top + 9.0f, 1.0f, 4.0f);
+        g.fillRect(left + 5.0f, top + 6.0f, 2.0f, 4.0f);
+        g.fillRect(left + 11.0f, top + 6.0f, 2.0f, 4.0f);
+    }
+    else
+    {
+        const float bars[] { 4.0f, 9.0f, 13.0f, 7.0f, 4.0f };
+        for (int i = 0; i < 5; ++i)
+            g.fillRoundedRectangle(left + 3.0f + 2.5f * static_cast<float>(i),
+                top + (18.0f - bars[i]) * 0.5f, 1.5f, bars[i], 0.7f);
+    }
 }
 
 juce::Colour savedColour(const juce::String& saved)
@@ -74,7 +100,7 @@ std::vector<size_t> orderByStart(const Items& items)
 
 HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    heading.setText("Arranger Manager Hub 0.0j", juce::dontSendNotification);
+    heading.setText("Arranger Manager Hub 0.0k", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -126,6 +152,8 @@ void HubEditor::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     const auto layout = columnsFor(list.getWidth());
     g.drawText("NAME", juce::Rectangle<int> {header.getX() + 12, header.getY(), layout.nameWidth - 12, header.getHeight()},
+        juce::Justification::centredLeft);
+    g.drawText("TYPE", juce::Rectangle<int> {header.getX() + layout.type, header.getY(), 40, header.getHeight()},
         juce::Justification::centredLeft);
     g.drawText("STATUS", juce::Rectangle<int> {header.getX() + layout.status, header.getY(), 100, header.getHeight()},
         juce::Justification::centredLeft);
@@ -217,19 +245,19 @@ void HubEditor::rebuildRows()
     auto addClip = [this](const arranger::SongEvent& event, int depth)
     {
         const auto tag = arranger::parse(event.name.toStdString());
-        const auto type = event.type == "MusicPart" ? "MIDI" : "Audio";
-        const auto display = arranger::displayClipName(event.name.toStdString(), type);
-        const auto name = juce::String::fromUTF8(display.c_str());
-        Row row { RowKind::clip, name,
+        Row row { RowKind::clip, {},
             {}, "pos " + event.start + "  len " + event.length,
             {}, tag, {}, depth };
+        row.notes = tag.valid ? juce::String::fromUTF8(tag.note.c_str()) : event.name.trim();
+        row.midi = event.type == "MusicPart";
         for (auto index : arranger::matchingSectionIndices(snapshot, event))
         {
             const auto& section = snapshot.sections[index];
             row.sections.push_back({section.name, savedColour(section.color)});
             const auto prefix = "[" + section.name + "]";
-            if (row.title.startsWith(prefix)) row.title = row.title.substring(prefix.length()).trimStart();
+            if (row.notes.startsWith(prefix)) row.notes = row.notes.substring(prefix.length()).trimStart();
         }
+        if (row.sections.empty()) row.title = "Clip";
         rows.push_back(std::move(row));
     };
 
@@ -334,6 +362,7 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
 
     if (row.kind == RowKind::clip)
     {
+        mediaIcon(g, layout.type, height, row.midi);
         if (row.tag.valid)
             badge(g, {layout.status, 7, 90, height - 14}, statusColor(row.tag.status), arranger::label(row.tag.status));
     }

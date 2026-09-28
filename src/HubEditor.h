@@ -27,6 +27,7 @@ private:
         juce::String notes;
         std::vector<SectionLabel> sections;
         juce::Colour trackColour;
+        bool midi = false;
     };
     void timerCallback() override;
     void refreshSnapshot();

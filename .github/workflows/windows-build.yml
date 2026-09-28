@@ -19,10 +19,10 @@ jobs:
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0j" | Out-Null
-          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0j"
-          Copy-Item -Force "docs/HUB-0.0j.md" "package/Arranger Manager 0.0j"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0k" | Out-Null
+          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0k"
+          Copy-Item -Force "docs/HUB-0.0k.md" "package/Arranger Manager 0.0k"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-Hub-0.0j-Windows
+          name: Arranger-Manager-Hub-0.0k-Windows
           path: package
