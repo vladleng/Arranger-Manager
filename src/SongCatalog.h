@@ -1,18 +1,61 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include "ArrangementTag.h"
+#include <algorithm>
 #include <vector>
 
 namespace arranger
 {
 struct CatalogFolder { juce::String id, name; };
-struct CatalogSong { juce::String path, folderId; };
+struct CatalogSong { juce::String path, folderId; Status status = Status::unmarked; };
+struct CatalogTrackStatus { juce::String path, trackId; Status status = Status::unmarked; };
 
 class SongCatalog
 {
 public:
     std::vector<CatalogFolder> folders;
     std::vector<CatalogSong> songs;
+    std::vector<CatalogTrackStatus> trackStatuses;
+
+    Status songStatus(const juce::String& path) const
+    {
+        for (const auto& song : songs)
+            if (song.path.equalsIgnoreCase(path)) return song.status;
+        return Status::unmarked;
+    }
+
+    bool setSongStatus(const juce::String& path, Status status)
+    {
+        for (auto& song : songs)
+            if (song.path.equalsIgnoreCase(path)) { song.status = status; return true; }
+        return false;
+    }
+
+    Status trackStatus(const juce::String& path, const juce::String& trackId) const
+    {
+        for (const auto& track : trackStatuses)
+            if (track.path.equalsIgnoreCase(path) && track.trackId == trackId) return track.status;
+        return Status::unmarked;
+    }
+
+    bool setTrackStatus(const juce::String& path, const juce::String& trackId, Status status)
+    {
+        if (trackId.isEmpty()) return false;
+        bool found = false;
+        for (const auto& song : songs)
+            if (song.path.equalsIgnoreCase(path)) { found = true; break; }
+        if (!found) return false;
+        for (auto it = trackStatuses.begin(); it != trackStatuses.end(); ++it)
+            if (it->path.equalsIgnoreCase(path) && it->trackId == trackId)
+            {
+                if (status == Status::unmarked) trackStatuses.erase(it);
+                else it->status = status;
+                return true;
+            }
+        if (status != Status::unmarked) trackStatuses.push_back({path, trackId, status});
+        return true;
+    }
 
     juce::String addFolder(juce::String name)
     {
@@ -45,7 +88,13 @@ public:
     bool removeSong(const juce::String& path)
     {
         for (auto it = songs.begin(); it != songs.end(); ++it)
-            if (it->path.equalsIgnoreCase(path)) { songs.erase(it); return true; }
+            if (it->path.equalsIgnoreCase(path))
+            {
+                songs.erase(it);
+                trackStatuses.erase(std::remove_if(trackStatuses.begin(), trackStatuses.end(),
+                    [&](const auto& track) { return track.path.equalsIgnoreCase(path); }), trackStatuses.end());
+                return true;
+            }
         return false;
     }
 
@@ -66,7 +115,7 @@ public:
     {
         auto root = std::make_unique<juce::DynamicObject>();
         root->setProperty("version", 1);
-        juce::Array<juce::var> folderArray, songArray;
+        juce::Array<juce::var> folderArray, songArray, trackArray;
         for (const auto& folder : folders)
         {
             auto item = std::make_unique<juce::DynamicObject>();
@@ -79,10 +128,20 @@ public:
             auto item = std::make_unique<juce::DynamicObject>();
             item->setProperty("path", song.path);
             item->setProperty("folderId", song.folderId);
+            item->setProperty("status", label(song.status));
             songArray.add(juce::var(item.release()));
+        }
+        for (const auto& track : trackStatuses)
+        {
+            auto item = std::make_unique<juce::DynamicObject>();
+            item->setProperty("path", track.path);
+            item->setProperty("trackId", track.trackId);
+            item->setProperty("status", label(track.status));
+            trackArray.add(juce::var(item.release()));
         }
         root->setProperty("folders", folderArray);
         root->setProperty("songs", songArray);
+        root->setProperty("trackStatuses", trackArray);
         return juce::JSON::toString(juce::var(root.release()));
     }
 
@@ -109,8 +168,16 @@ public:
                 const auto path = item.getProperty("path", {}).toString();
                 auto folderId = item.getProperty("folderId", {}).toString();
                 if (!catalog.validFolder(folderId)) folderId.clear();
-                catalog.addSong(path, folderId);
+                if (catalog.addSong(path, folderId))
+                    catalog.setSongStatus(path, parseStatus(item.getProperty("status", {}).toString().toStdString()));
             }
+        const auto trackList = root.getProperty("trackStatuses", {});
+        if (const auto* array = trackList.getArray())
+            for (const auto& item : *array)
+                if (item.isObject())
+                    catalog.setTrackStatus(item.getProperty("path", {}).toString(),
+                        item.getProperty("trackId", {}).toString(),
+                        parseStatus(item.getProperty("status", {}).toString().toStdString()));
         return catalog;
     }
 
