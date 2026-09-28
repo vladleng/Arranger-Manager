@@ -17,7 +17,7 @@ juce::String readEntry(juce::ZipFile& zip, const juce::String& name, juce::int64
     std::unique_ptr<juce::InputStream> stream(zip.createStreamForEntry(index));
     if (stream == nullptr) { error = "Cannot read " + name; return {}; }
     juce::MemoryBlock data;
-    stream->readIntoMemoryBlock(data, static_cast<ssize_t>(limit + 1));
+    stream->readIntoMemoryBlock(data, static_cast<int>(limit + 1));
     if (data.getSize() > static_cast<size_t>(limit) || data.getSize() != static_cast<size_t>(entry->uncompressedSize))
     {
         error = "Incomplete or oversized " + name;
