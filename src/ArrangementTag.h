@@ -115,4 +115,12 @@ inline Tag parse(std::string_view name)
     result.valid = true;
     return result;
 }
+
+// UI title only; keep the original event name intact in Studio Pro.
+inline std::string displayClipName(std::string_view name, std::string_view fallback)
+{
+    const auto tag = parse(name);
+    if (!tag.valid) return trim(name);
+    return tag.note.empty() ? std::string(fallback) : tag.note;
+}
 }

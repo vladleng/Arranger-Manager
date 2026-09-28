@@ -26,6 +26,7 @@ private:
         bool expandable = false, expanded = false;
         juce::String notes;
         std::vector<SectionLabel> sections;
+        juce::Colour trackColour;
     };
     void timerCallback() override;
     void refreshSnapshot();

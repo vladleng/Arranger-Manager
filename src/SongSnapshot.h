@@ -11,7 +11,7 @@ struct SongEvent
 
 struct SongTrack
 {
-    juce::String id, name, mediaType, notes;
+    juce::String id, name, mediaType, notes, color;
     std::vector<SongEvent> events;
 };
 

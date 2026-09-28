@@ -27,5 +27,10 @@ int main()
     passed &= check(!parse("WIP | P9 | bad priority").valid, "invalid priority");
     passed &= check(!parse("WIP | P1junk").valid, "malformed priority");
     passed &= check(!parse("BLOCKED | P0 | waiting").valid, "retired P0");
+    passed &= check(displayClipName("TODO | P2", "Audio") == "Audio", "status and priority hidden from title");
+    passed &= check(displayClipName("REVIEW | P3", "MIDI") == "MIDI", "legacy status hidden from title");
+    passed &= check(displayClipName("WIP", "Audio") == "Audio", "status-only title");
+    passed &= check(displayClipName("WIP | P2 | Сделать 5 партий", "Audio") == "Сделать 5 партий", "tag note title");
+    passed &= check(displayClipName("[Verse 2]", "Audio") == "[Verse 2]", "ordinary title preserved");
     return passed ? 0 : 1;
 }

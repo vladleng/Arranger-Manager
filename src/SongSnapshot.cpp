@@ -136,6 +136,7 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                 songTrack.id = track->getStringAttribute("trackID");
                 songTrack.name = track->getStringAttribute("name");
                 songTrack.mediaType = track->getStringAttribute("mediaType");
+                songTrack.color = track->getStringAttribute("color");
                 if (auto note = trackNotes.find(songTrack.id); note != trackNotes.end())
                     songTrack.notes = note->second;
                 for (auto* events = track->getFirstChildElement(); events != nullptr; events = events->getNextElement())

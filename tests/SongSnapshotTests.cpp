@@ -35,7 +35,7 @@ int main()
     add(zip, "Song/song.xml", std::string("\xEF\xBB\xBF") +
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
-        "<MediaTrack name=\"Drums\" trackID=\"track-1\" mediaType=\"Audio\">"
+        "<MediaTrack name=\"Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
         "<List x:id=\"Events\"><AudioEvent name=\"WIP | P2\" start=\"32\" length=\"8\"/>"
         "</List></MediaTrack>"
         "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
@@ -58,6 +58,7 @@ int main()
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
         && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
         && check(snapshot.tracks[0].notes == "Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
+        && check(snapshot.tracks[0].color == "FF34A9F2" && snapshot.tracks[1].color.isEmpty(), "Track colour mismatch")
         && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro"
             && snapshot.sections[0].color == "FFFFAD2A" && snapshot.sections[1].color == "FF8A6B32", "Arrangement mismatch")
         && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
