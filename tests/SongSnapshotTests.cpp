@@ -1,5 +1,6 @@
 #include "SongSnapshot.h"
 #include "StudioProColour.h"
+#include "SongProgress.h"
 #include <iostream>
 #include <string>
 
@@ -30,7 +31,7 @@ int main()
         "<Attribute id=\"Document:Notes\" value=\"notes.txt\"/></MetaInformation>");
     add(zip, "notes.txt", "Project notes");
     add(zip, "notepad.xml", "<NotepadData>"
-        "<NotepadItem id=\"track-1\" title=\"Drums\" text=\"Record five parts\"/>"
+        "<NotepadItem id=\"track-1\" title=\"Drums\" text=\"WIP | Record five parts\"/>"
         "<NotepadItem id=\"track-2\" title=\"Keys\" text=\"\"/>"
         "</NotepadData>");
     add(zip, "Song/song.xml", std::string("\xEF\xBB\xBF") +
@@ -58,7 +59,10 @@ int main()
         && check(snapshot.artist == "Artist" && snapshot.notes == "Project notes", "Metadata mismatch")
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
         && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
-        && check(snapshot.tracks[0].notes == "Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
+        && check(snapshot.tracks[0].notes == "WIP | Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
+        && check(arranger::parseTrackNote(snapshot.tracks[0].notes.toStdString()).status == arranger::Status::wip
+            && arranger::parseTrackNote(snapshot.tracks[0].notes.toStdString()).note == "Record five parts",
+            "Track status did not come from project notepad")
         && check(snapshot.tracks[0].color == "FF34A9F2" && snapshot.tracks[1].color.isEmpty(), "Track colour mismatch")
         && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro"
             && snapshot.sections[0].color == "FFFFAD2A" && snapshot.sections[1].color == "FF8A6B32", "Arrangement mismatch")
@@ -76,7 +80,11 @@ int main()
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot,
-            arranger::SongEvent{.start = "39", .length = "2"}) == std::vector<size_t>({0, 1}), "Boundary overlap mismatch");
+            arranger::SongEvent{.start = "39", .length = "2"}) == std::vector<size_t>({0, 1}), "Boundary overlap mismatch")
+        && check(arranger::clipProgress(snapshot.events) == std::pair<int, int>{1, 2}, "Tagged clip progress mismatch")
+        && check(arranger::clipProgress({snapshot.events[0], snapshot.events[1],
+            arranger::SongEvent{.name = "Plain take"}}) == std::pair<int, int>{1, 2},
+            "Unmarked clip entered progress denominator");
     file.deleteFile();
     return passed ? 0 : 1;
 }

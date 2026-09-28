@@ -35,7 +35,6 @@ private:
         juce::String mediaType;
         int done = 0, total = 0;
         juce::String songPath, folderId;
-        juce::String trackId;
         arranger::Status manualStatus = arranger::Status::unmarked;
     };
     struct CachedSong
@@ -53,7 +52,7 @@ private:
     void promptNewFolder();
     void showSongMenu(const juce::String& songPath);
     void showFolderMenu(const juce::String& folderId);
-    void showStatusMenu(const juce::String& songPath, const juce::String& trackId);
+    void showStatusMenu(const juce::String& songPath);
     void catalogChanged();
     int getNumRows() override { return static_cast<int>(rows.size()); }
     void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;

@@ -1,4 +1,5 @@
 #include "HubEditor.h"
+#include "SongProgress.h"
 #include "StudioProColour.h"
 #include <algorithm>
 #include <iterator>
@@ -94,17 +95,6 @@ juce::Colour savedColour(const juce::String& saved)
     return juce::Colour(0xff586d83);
 }
 
-std::pair<int, int> progressCounts(const std::vector<arranger::SongEvent>& events)
-{
-    int done = 0;
-    for (const auto& event : events)
-    {
-        const auto tag = arranger::parse(event.name.toStdString());
-        if (tag.valid && tag.status == arranger::Status::done) ++done;
-    }
-    return {done, static_cast<int>(events.size())};
-}
-
 void progressBar(juce::Graphics& g, int x, int height, int width, int done, int total)
 {
     g.setColour(juce::Colour(0xffaebdca));
@@ -146,7 +136,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1 fix1", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -155,7 +145,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
         label->setColour(juce::Label::textColourId, juce::Colour(0xffdce4eb));
         addAndMakeVisible(*label);
     }
-    help.setText(catalog != nullptr ? "Select a folder to add .song. Click song/track Status to set it."
+    help.setText(catalog != nullptr ? "Click song Status to set it. Track Status comes from Studio Pro track notes."
         : "Saved project snapshot - Save in Studio Pro to update", juce::dontSendNotification);
     help.setColour(juce::Label::textColourId, juce::Colour(0xffaebdca));
     path.setText("No project selected", juce::dontSendNotification);
@@ -345,7 +335,7 @@ void HubEditor::refreshCatalog()
     auto targetName = juce::String("Songs");
     for (const auto& folder : catalog->folders)
         if (folder.id == selectedFolderId) { targetName = folder.name; break; }
-    help.setText("Add .song to: " + targetName + "  |  Right-click a song to move it",
+    help.setText("Add .song to: " + targetName + "  |  Song Status: click  |  Track Status: Studio Pro notes",
         juce::dontSendNotification);
     std::set<std::string> paths;
     for (const auto& song : catalog->songs)
@@ -421,18 +411,11 @@ void HubEditor::rebuildRows()
     auto addFolder = [this](const juce::String& id, const juce::String& name)
     {
         const auto key = "folder:" + id.toStdString();
-        int count = 0, done = 0, total = 0;
+        int count = 0;
         for (const auto& song : catalog->songs)
             if (song.folderId == id)
-            {
                 ++count;
-                if (const auto found = songCache.find(song.path.toStdString()); found != songCache.end())
-                {
-                    const auto [d, t] = progressCounts(found->second.snapshot.events);
-                    done += d;
-                    total += t;
-                }
-            }
+        const auto [done, total] = catalog->folderProgress(id);
         Row folder {RowKind::folder, name, juce::String(count) + " songs", {}, {}, {}, key,
             0, true, !collapsed.contains(key)};
         folder.folderId = id;
@@ -463,7 +446,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         song.ok() ? juce::String(static_cast<int>(song.tracks.size())) + " tracks / "
             + juce::String(static_cast<int>(song.events.size())) + " clips" : song.error,
         {}, {}, {}, projectKey, depth, song.ok(), expanded};
-    const auto [projectDone, projectTotal] = progressCounts(song.events);
+    const auto [projectDone, projectTotal] = arranger::clipProgress(song.events);
     project.done = projectDone;
     project.total = projectTotal;
     project.songPath = songPath;
@@ -506,13 +489,13 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             rows.push_back({RowKind::track, track.name,
                 juce::String(static_cast<int>(track.events.size())) + " clips", {}, {}, {},
                 trackKey, depth + 2, !track.events.empty(), trackOpen});
-            rows.back().notes = track.notes.replaceCharacters("\r\n", "  ").trim();
+            const auto trackNote = arranger::parseTrackNote(track.notes.toStdString());
+            rows.back().notes = juce::String::fromUTF8(trackNote.note.c_str()).replaceCharacters("\r\n", "  ").trim();
             rows.back().trackColour = savedColour(track.color);
             rows.back().mediaType = track.mediaType;
             rows.back().songPath = songPath;
-            rows.back().trackId = track.id.isNotEmpty() ? track.id : juce::String(static_cast<int>(i));
-            if (catalogProject) rows.back().manualStatus = catalog->trackStatus(songPath, rows.back().trackId);
-            const auto [done, total] = progressCounts(track.events);
+            rows.back().manualStatus = trackNote.status;
+            const auto [done, total] = arranger::clipProgress(track.events);
             rows.back().done = done;
             rows.back().total = total;
             if (!trackOpen) continue;
@@ -601,10 +584,10 @@ void HubEditor::showFolderMenu(const juce::String& folderId)
         });
 }
 
-void HubEditor::showStatusMenu(const juce::String& songPath, const juce::String& trackId)
+void HubEditor::showStatusMenu(const juce::String& songPath)
 {
     if (catalog == nullptr || songPath.isEmpty()) return;
-    const auto current = trackId.isEmpty() ? catalog->songStatus(songPath) : catalog->trackStatus(songPath, trackId);
+    const auto current = catalog->songStatus(songPath);
     juce::PopupMenu menu;
     const arranger::Status options[] {arranger::Status::unmarked, arranger::Status::pool,
         arranger::Status::todo, arranger::Status::wip, arranger::Status::draft,
@@ -613,14 +596,13 @@ void HubEditor::showStatusMenu(const juce::String& songPath, const juce::String&
         menu.addItem(i + 1, options[i] == arranger::Status::unmarked ? "Clear status" : arranger::label(options[i]),
             true, options[i] == current);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
-        [safe = juce::Component::SafePointer<HubEditor>(this), songPath, trackId](int result)
+        [safe = juce::Component::SafePointer<HubEditor>(this), songPath](int result)
         {
             if (safe == nullptr || result < 1 || result > 8) return;
             const arranger::Status options[] {arranger::Status::unmarked, arranger::Status::pool,
                 arranger::Status::todo, arranger::Status::wip, arranger::Status::draft,
                 arranger::Status::wait, arranger::Status::done, arranger::Status::blocked};
-            if (trackId.isEmpty()) safe->catalog->setSongStatus(songPath, options[result - 1]);
-            else safe->catalog->setTrackStatus(songPath, trackId, options[result - 1]);
+            safe->catalog->setSongStatus(songPath, options[result - 1]);
             safe->catalogChanged();
         });
 }
@@ -629,13 +611,12 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
     if (index < 0 || index >= static_cast<int>(rows.size())) return;
     const auto& row = rows[static_cast<size_t>(index)];
-    if (catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::track)
-        && !event.mods.isPopupMenu())
+    if (catalog != nullptr && row.kind == RowKind::project && !event.mods.isPopupMenu())
     {
         const auto layout = columnsFor(list.getWidth());
         if (event.x >= layout.status && event.x < layout.status + layout.statusWidth)
         {
-            showStatusMenu(row.songPath, row.kind == RowKind::track ? row.trackId : juce::String());
+            showStatusMenu(row.songPath);
             return;
         }
     }
@@ -654,7 +635,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
             auto targetName = juce::String("Songs");
             for (const auto& folder : catalog->folders)
                 if (folder.id == selectedFolderId) { targetName = folder.name; break; }
-            help.setText("Add .song to: " + targetName + "  |  Click song/track Status to set it",
+            help.setText("Add .song to: " + targetName + "  |  Song Status: click  |  Track Status: Studio Pro notes",
                 juce::dontSendNotification);
         }
         if (row.kind == RowKind::project)
@@ -769,7 +750,7 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
                 juce::Justification::centredLeft, true);
         }
     }
-    if (catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::track))
+    if ((catalog != nullptr && row.kind == RowKind::project) || row.kind == RowKind::track)
     {
         if (row.manualStatus != arranger::Status::unmarked)
             badge(g, {layout.status, 7, layout.statusWidth, height - 14},
@@ -778,7 +759,8 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
         {
             g.setColour(juce::Colour(0xff8394a3));
             g.setFont(juce::FontOptions(12.0f));
-            g.drawText("+ status", juce::Rectangle<int> {layout.status, 0, layout.statusWidth, height},
+            g.drawText(row.kind == RowKind::project ? "+ status" : "-",
+                juce::Rectangle<int> {layout.status, 0, layout.statusWidth, height},
                 juce::Justification::centredLeft);
         }
     }
