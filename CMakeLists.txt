@@ -65,7 +65,7 @@ juce_add_plugin(ArrangerManagerHub
     COPY_PLUGIN_AFTER_BUILD FALSE)
 juce_generate_juce_header(ArrangerManagerHub)
 target_sources(ArrangerManagerHub PRIVATE
-    src/ArrangementTag.h src/SongSnapshot.h src/SongSnapshot.cpp
+    src/ArrangementTag.h src/StudioProColour.h src/SongSnapshot.h src/SongSnapshot.cpp
     src/HubProcessor.h src/HubProcessor.cpp
     src/HubEditor.h src/HubEditor.cpp)
 target_compile_definitions(ArrangerManagerHub PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)

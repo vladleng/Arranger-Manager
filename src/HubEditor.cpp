@@ -1,6 +1,6 @@
 #include "HubEditor.h"
+#include "StudioProColour.h"
 #include <algorithm>
-#include <cctype>
 #include <numeric>
 
 namespace
@@ -68,9 +68,8 @@ void mediaIcon(juce::Graphics& g, int x, int height, bool midi)
 
 juce::Colour savedColour(const juce::String& saved)
 {
-    const auto value = saved.toStdString();
-    if (value.size() == 8 && std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isxdigit(c) != 0; }))
-        return juce::Colour(0xff000000u | static_cast<juce::uint32>(saved.getHexValue32()));
+    if (const auto argb = arranger::studioProColour(saved.toStdString()))
+        return juce::Colour(static_cast<juce::uint32>(*argb));
     return juce::Colour(0xff586d83);
 }
 
@@ -100,7 +99,7 @@ std::vector<size_t> orderByStart(const Items& items)
 
 HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    heading.setText("Arranger Manager Hub 0.0k", juce::dontSendNotification);
+    heading.setText("Arranger Manager Hub 0.0k fix1", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })

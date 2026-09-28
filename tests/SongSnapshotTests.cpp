@@ -1,4 +1,5 @@
 #include "SongSnapshot.h"
+#include "StudioProColour.h"
 #include <iostream>
 #include <string>
 
@@ -61,6 +62,13 @@ int main()
         && check(snapshot.tracks[0].color == "FF34A9F2" && snapshot.tracks[1].color.isEmpty(), "Track colour mismatch")
         && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro"
             && snapshot.sections[0].color == "FFFFAD2A" && snapshot.sections[1].color == "FF8A6B32", "Arrangement mismatch")
+        && check(arranger::studioProColour(snapshot.sections[0].color.toStdString()) == 0xff2aadffu,
+            "Studio Pro section ABGR conversion mismatch")
+        && check(arranger::studioProColour(snapshot.sections[1].color.toStdString()) == 0xff326b8au,
+            "Studio Pro inherited section ABGR conversion mismatch")
+        && check(arranger::studioProColour("FFFF2A94") == 0xff942affu,
+            "Studio Pro track ABGR conversion mismatch")
+        && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
         && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
             && snapshot.markers[1].name == "End", "Marker mismatch")
         && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "Drums", "Audio event mismatch")
