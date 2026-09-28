@@ -39,14 +39,14 @@ cmake --build build --config Release --target ArrangerManagerDesktop ArrangerMan
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует только `.exe` и `docs/HUB-0.1-fix1.md`. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. [Windows Build #35](https://github.com/vladleng/Arranger-Manager/actions/runs/36397309647) для 0.1 прошёл компиляцию и все три набора тестов; ZIP `Arranger-Manager-0.1-Windows-App`. Сборка fix1 и её пользовательская визуальная проверка фиксируются отдельно.
+CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует только `.exe` и `docs/HUB-0.1-fix1.md`. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. [Windows Build #35](https://github.com/vladleng/Arranger-Manager/actions/runs/36397309647) для 0.1 прошёл компиляцию и все три набора тестов; ZIP `Arranger-Manager-0.1-Windows-App`. [Windows Build #38](https://github.com/vladleng/Arranger-Manager/actions/runs/36412460016) для 0.1 fix1 прошёл сборку приложения и Hub VST3 и все тесты. Пользователь проверил последнюю сборку на своём проекте 2026-09-28 и подтвердил, что всё работает.
 
 ## GitHub и следующие действия
 
 - 0.1 fix1: ветка `hub-0-1-fix1-track-notes-progress` поверх 0.1 ([PR #20](https://github.com/vladleng/Arranger-Manager/pull/20)), которая базируется на каталоге ([PR #16](https://github.com/vladleng/Arranger-Manager/pull/16)). Предшествующие UI PR тоже могут быть draft; не считайте `main` содержащей 0.1 без проверки истории веток.
-- [#17](https://github.com/vladleng/Arranger-Manager/issues/17) — три уточнения пользователя после 0.1 реализуются в fix1; после сборки требуется проверка на его проекте и решение о закрытии после merge.
+- [#17](https://github.com/vladleng/Arranger-Manager/issues/17) — этап 2 закрыт после успешной пользовательской проверки 0.1 fix1. PR #20 и #21 остаются открытыми draft в стеке с #16.
 - [#7](https://github.com/vladleng/Arranger-Manager/issues/7) — каталог частично реализован; поиск, приоритет песни, масштабирование и переносимость остаются.
 - [#8](https://github.com/vladleng/Arranger-Manager/issues/8) — следующий технический этап: безопасная запись **закрытой копии** `.song`, проверка в Studio Pro прежде чем трогать оригинал.
 - [#19](https://github.com/vladleng/Arranger-Manager/issues/19) — исследование `.show`, сначала read-only на тестовом файле.
 
-Перед изменениями проверить актуальное состояние этих Issues, PR и CI. После пользовательского теста 0.1 fix1 устранить найденные ошибки, затем продолжать по согласованному этапу. Не предполагать наличие схемы `.show` или безопасной записи `.song` только по результатам read-only parser.
+Перед изменениями проверить актуальное состояние этих Issues, PR и CI. При продолжении работы учитывать, что пользовательская проверка 0.1 fix1 уже прошла, но ветки ещё не слиты. Не предполагать наличие схемы `.show` или безопасной записи `.song` только по результатам read-only parser. Не предполагать наличие схемы `.show` или безопасной записи `.song` только по результатам read-only parser.
