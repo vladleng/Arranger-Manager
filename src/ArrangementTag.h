@@ -7,7 +7,7 @@
 
 namespace arranger
 {
-enum class Status { unmarked, todo, wip, draft, review, done, blocked };
+enum class Status { unmarked, pool, todo, wip, draft, review, done, blocked };
 enum class Priority { none, p0, p1, p2, p3 };
 
 struct Tag
@@ -35,6 +35,7 @@ inline std::string upper(std::string text)
 inline Status parseStatus(std::string_view text)
 {
     const auto code = upper(trim(text));
+    if (code == "POOL") return Status::pool;
     if (code == "TODO") return Status::todo;
     if (code == "WIP") return Status::wip;
     if (code == "DRAFT") return Status::draft;
@@ -58,6 +59,7 @@ inline const char* label(Status status)
 {
     switch (status)
     {
+        case Status::pool: return "POOL";
         case Status::todo: return "TODO";
         case Status::wip: return "WIP";
         case Status::draft: return "DRAFT";

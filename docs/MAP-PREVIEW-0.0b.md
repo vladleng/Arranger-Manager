@@ -9,6 +9,7 @@ This prototype reads the existing ARA event names. It does not rename or recolor
 Examples:
 
 - `WIP | P1 | transition into chorus`
+- `POOL | P2 | sketch to sort later`
 - `DRAFT | P2 | bass groove`
 - `REVIEW | P1 | check dynamics`
 - `DONE | P2`
@@ -20,6 +21,7 @@ The track names the instrument group and the timeline locates the section. The e
 
 | Status | Meaning | Event color and preview swatch |
 | --- | --- | --- |
+| `POOL` | Idea or unassigned material | Violet `#8B78B8` |
 | `TODO` | Not started | Gray `#818A96` |
 | `WIP` | Actively being worked on | Blue `#3B82F6` |
 | `DRAFT` | First pass exists, needs polish | Cyan `#35B8D6` |
