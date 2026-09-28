@@ -11,15 +11,15 @@ from zipfile import BadZipFile, ZipFile
 MAX_MEMBER_BYTES = 2 * 1024 * 1024
 
 
-def read_member(archive, name):
+def read_member(archive, name, limit=MAX_MEMBER_BYTES):
     members = [item for item in archive.infolist() if item.filename == name]
     if not members:
         return None
-    if len(members) != 1 or members[0].file_size > MAX_MEMBER_BYTES:
+    if len(members) != 1 or members[0].file_size > limit:
         raise ValueError(f"Invalid or oversized archive entry: {name}")
     with archive.open(members[0]) as stream:
-        content = stream.read(MAX_MEMBER_BYTES + 1)
-    if len(content) > MAX_MEMBER_BYTES:
+        content = stream.read(limit + 1)
+    if len(content) > limit:
         raise ValueError(f"Archive entry is too large: {name}")
     return content
 

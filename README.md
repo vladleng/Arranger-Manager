@@ -10,19 +10,16 @@
 
 DAW timeline используется как источник структуры проекта.
 
-Для MVP предлагается создать один или несколько служебных audio tracks и размечать готовность аранжировки настоящими silent audio events. Положение и длина event задают область, а имя/статус — смысл.
+Текущий выбор для MVP: **сам проект Studio Pro является источником данных**. Arranger Manager читает уже существующие дорожки и аудио/MIDI-клипы, а статус и приоритет извлекает из имени обычного события, например `POOL | P2`. Отдельная служебная дорожка не требуется. Чтение сохранённого `.song` подтверждено для Info, Notes, заметок дорожек, аудиособытий и MIDI-партий тестового проекта.
 
 Пример:
 
 ```text
-ARRANGER — Brass
-[ BRASS:DONE ]             [ BRASS:DRAFT ]
+Drums
+[ TODO | P2 ]          [ WIP ]       [ REVIEW | P3 ]
 
-ARRANGER — Strings
-        [ STRINGS:REVIEW ]
-
-ARRANGER — Bass
-[──────────── BASS:DONE ────────────]
+Bass
+[ Intro ]               [ Chorus ]
 ```
 
 Arranger Manager должен превращать такую разметку в:
@@ -50,7 +47,7 @@ Arranger Manager должен превращать такую разметку �
 
 **Concept / pre-development.**
 
-До начала полноценной реализации необходимо подтвердить ARA-возможности Studio Pro на служебных audio regions.
+ARA Inspector подтвердил чтение именованных аудиорегионов с Event FX. Теперь исследуется импорт всех событий из сохранённого проекта и редактирование их имён через Studio Pro. См. [исследование моста](docs/CONTEXT-BRIDGE-PROBE.md).
 
 ### Stage 0 prototype
 
@@ -59,9 +56,3 @@ Arranger Manager должен превращать такую разметку �
 The Windows package is produced by GitHub Actions. See [Studio Pro test checklist](docs/STAGE0-TEST.md). Host behavior remains unverified until the test is run in Studio Pro.
 
 The [Map Preview 0.0b](docs/MAP-PREVIEW-0.0b.md) branch adds status and priority parsing with separate color badges while retaining the raw ARA report. It is an early Stage 1 interface experiment, not the coverage engine.
-
-The [Hub 0.0c test build](docs/HUB-0.0c.md) adds a separate ordinary VST3 interface. ARA Inspector remains on each marked event and publishes region data to the Hub inside the Studio Pro process. The Hub window resizes without scaling text or controls, but remains floating in Studio Pro.
-
-In Studio Pro, only the ARA editor attaches to the relevant panel. The [0.0d dock test](docs/DOCK-TEST-0.0d.md) therefore makes the ARA Inspector itself responsive; the ordinary Hub remains an optional floating view.
-
-The [0.0e context bridge](docs/CONTEXT-BRIDGE-0.0e.md) imports manually exported Arranger sections and Start/End markers into the ARA Inspector, displaying section context alongside region statuses. The script is read-only and the import remains a manual snapshot.
