@@ -15,8 +15,34 @@ bool HubProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 juce::AudioProcessorEditor* HubProcessor::createEditor() { return new HubEditor(*this); }
 void HubProcessor::getStateInformation(juce::MemoryBlock& data)
 {
-    static constexpr char marker[] = "ArrangerManagerHubV1";
-    data.replaceAll(marker, sizeof(marker));
+    juce::XmlElement state("ArrangerManagerHubState");
+    state.setAttribute("version", 1);
+    state.setAttribute("projectPath", getProjectPath());
+    const auto xml = state.toString();
+    data.replaceAll(xml.toRawUTF8(), static_cast<size_t>(xml.getNumBytesAsUTF8()));
+}
+
+void HubProcessor::setStateInformation(const void* bytes, int size)
+{
+    if (bytes == nullptr || size <= 0) return;
+    auto state = juce::XmlDocument::parse(juce::String::fromUTF8(static_cast<const char*>(bytes), size));
+    if (state != nullptr && state->hasTagName("ArrangerManagerHubState"))
+        setProjectPath(state->getStringAttribute("projectPath"));
+}
+
+juce::String HubProcessor::getProjectPath() const
+{
+    const juce::ScopedLock lock(stateLock);
+    return projectPath;
+}
+
+void HubProcessor::setProjectPath(juce::String path)
+{
+    {
+        const juce::ScopedLock lock(stateLock);
+        projectPath = std::move(path);
+    }
+    updateHostDisplay();
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new HubProcessor(); }

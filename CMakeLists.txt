@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(FetchContent)
 FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 9.0.2 GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
+option(ARRANGER_BUILD_ARA_INSPECTOR "Build the legacy ARA feasibility plug-in" OFF)
+if(ARRANGER_BUILD_ARA_INSPECTOR)
 FetchContent_Declare(ARA_SDK GIT_REPOSITORY https://github.com/Celemony/ARA_SDK.git
     GIT_TAG releases/2.3.0 GIT_SUBMODULES_RECURSE TRUE)
 FetchContent_GetProperties(ARA_SDK)
@@ -44,6 +46,7 @@ if(MSVC)
 endif()
 target_link_libraries(ArrangerManagerInspector PRIVATE juce::juce_audio_utils
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+endif()
 
 juce_add_plugin(ArrangerManagerHub
     COMPANY_NAME "Moon River Studio"
@@ -62,7 +65,7 @@ juce_add_plugin(ArrangerManagerHub
     COPY_PLUGIN_AFTER_BUILD FALSE)
 juce_generate_juce_header(ArrangerManagerHub)
 target_sources(ArrangerManagerHub PRIVATE
-    src/ArrangementTag.h src/SharedArrangementMap.h
+    src/ArrangementTag.h src/SongSnapshot.h src/SongSnapshot.cpp
     src/HubProcessor.h src/HubProcessor.cpp
     src/HubEditor.h src/HubEditor.cpp)
 target_compile_definitions(ArrangerManagerHub PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)

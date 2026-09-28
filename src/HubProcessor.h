@@ -22,5 +22,10 @@ public:
     const juce::String getProgramName(int) override { return {}; }
     void changeProgramName(int, const juce::String&) override {}
     void getStateInformation(juce::MemoryBlock& data) override;
-    void setStateInformation(const void*, int) override {}
+    void setStateInformation(const void*, int) override;
+    juce::String getProjectPath() const;
+    void setProjectPath(juce::String path);
+private:
+    mutable juce::CriticalSection stateLock;
+    juce::String projectPath;
 };

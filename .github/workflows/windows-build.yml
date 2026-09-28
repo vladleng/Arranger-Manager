@@ -1,4 +1,4 @@
-name: Windows Inspector Build
+name: Windows Hub Build
 on:
   push:
     branches: [main]
@@ -13,18 +13,16 @@ jobs:
       - name: Configure
         run: cmake -S . -B build
       - name: Build
-        run: cmake --build build --config Release --target ArrangerManagerInspector_VST3 ArrangerManagerHub_VST3 ArrangementTagTests --parallel 2
+        run: cmake --build build --config Release --target ArrangerManagerHub_VST3 ArrangementTagTests --parallel 2
       - name: Test name parser
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0e" | Out-Null
-          Copy-Item -Recurse -Force "build/ArrangerManagerInspector_artefacts/Release/VST3/Arranger Manager Inspector.vst3" "package/Arranger Manager 0.0e"
-          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0e"
-          Copy-Item -Force "scripts/ArrangerManagerContextProbe.package" "package/Arranger Manager 0.0e"
-          Copy-Item -Force "docs/CONTEXT-BRIDGE-0.0e.md" "package/Arranger Manager 0.0e"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0f" | Out-Null
+          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0f"
+          Copy-Item -Force "docs/HUB-0.0f.md" "package/Arranger Manager 0.0f"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-0.0e-Windows
+          name: Arranger-Manager-Hub-0.0f-Windows
           path: package

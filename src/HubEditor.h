@@ -1,7 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "HubProcessor.h"
-#include "SharedArrangementMap.h"
+#include "SongSnapshot.h"
 #include "ArrangementTag.h"
 #include <vector>
 
@@ -13,18 +13,19 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
-    struct Row
-    {
-        juce::String track, name;
-        arranger::Tag tag;
-        double start = 0.0, duration = 0.0;
-    };
+    struct Row { arranger::SongEvent event; arranger::Tag tag; };
     void timerCallback() override;
+    void refreshSnapshot();
     int getNumRows() override { return static_cast<int>(rows.size()); }
     void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
 
-    juce::Label heading, summary, help;
-    juce::ListBox list { "Arrangement map", this };
+    HubProcessor& processor;
+    juce::Label heading, path, summary, info, notes, help;
+    juce::TextButton choose { "Open .song" }, refresh { "Refresh" };
+    juce::ListBox list { "Project events", this };
+    std::unique_ptr<juce::FileChooser> chooser;
     std::vector<Row> rows;
-    std::uint64_t lastRevision = ~std::uint64_t{};
+    juce::String lastPath;
+    juce::int64 lastModified = -1, lastSize = -1;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HubEditor)
 };
