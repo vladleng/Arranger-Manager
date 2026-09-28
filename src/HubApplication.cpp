@@ -8,12 +8,14 @@ class HubWindow final : public juce::DocumentWindow
 {
 public:
     HubWindow(std::function<juce::String()> getPath,
-        std::function<void(juce::String)> setPath)
+        std::function<void(juce::String)> setPath, arranger::SongCatalog& catalog,
+        std::function<void()> saveCatalog)
         : juce::DocumentWindow("Arranger Manager", juce::Colour(0xff1d232b),
               juce::DocumentWindow::allButtons)
     {
         setUsingNativeTitleBar(true);
-        setContentOwned(new HubEditor(std::move(getPath), std::move(setPath)), true);
+        setContentOwned(new HubEditor(std::move(getPath), std::move(setPath), &catalog,
+            std::move(saveCatalog)), true);
         setResizable(true, false);
         setResizeLimits(460, 320, 1600, 1200);
         centreWithSize(980, 620);
@@ -27,7 +29,7 @@ class HubApplication final : public juce::JUCEApplication
 {
 public:
     const juce::String getApplicationName() override { return "Arranger Manager"; }
-    const juce::String getApplicationVersion() override { return "0.0l"; }
+    const juce::String getApplicationVersion() override { return "0.0m"; }
     bool moreThanOneInstanceAllowed() override { return false; }
 
     void initialise(const juce::String&) override
@@ -38,7 +40,13 @@ public:
         options.filenameSuffix = ".settings";
         settings.setStorageParameters(options);
         if (auto* user = settings.getUserSettings())
+        {
             projectPath = user->getValue("lastProjectPath");
+            const auto savedCatalog = user->getValue("songCatalog");
+            catalog = arranger::SongCatalog::fromJson(savedCatalog);
+            if (savedCatalog.isEmpty() && projectPath.isNotEmpty() && catalog.addSong(projectPath))
+                user->setValue("songCatalog", catalog.toJson());
+        }
 
         window = std::make_unique<HubWindow>(
             [this] { return projectPath; },
@@ -48,6 +56,14 @@ public:
                 if (auto* user = settings.getUserSettings())
                 {
                     user->setValue("lastProjectPath", projectPath);
+                    user->saveIfNeeded();
+                }
+            }, catalog,
+            [this]
+            {
+                if (auto* user = settings.getUserSettings())
+                {
+                    user->setValue("songCatalog", catalog.toJson());
                     user->saveIfNeeded();
                 }
             });
@@ -62,6 +78,7 @@ public:
 private:
     juce::ApplicationProperties settings;
     juce::String projectPath;
+    arranger::SongCatalog catalog;
     std::unique_ptr<HubWindow> window;
 };
 }
