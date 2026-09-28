@@ -29,7 +29,7 @@ juce::String readEntry(juce::ZipFile& zip, const juce::String& name, juce::int64
 std::unique_ptr<juce::XmlElement> parse(juce::String xml, const juce::String& name, juce::String& error)
 {
     // String-based XmlDocument parsing does not discard a UTF-8 byte-order mark.
-    if (xml.startsWithChar(static_cast<juce_wchar>(0xfeff))) xml = xml.substring(1);
+    if (xml.startsWithChar(static_cast<juce::juce_wchar>(0xfeff))) xml = xml.substring(1);
     if (xml.containsIgnoreCase("<!DOCTYPE") || xml.containsIgnoreCase("<!ENTITY"))
     {
         error = "Unsupported XML in " + name;
