@@ -77,6 +77,7 @@ target_link_libraries(ArrangerManagerHub PRIVATE juce::juce_audio_utils
 
 juce_add_gui_app(ArrangerManagerDesktop
     COMPANY_NAME "Moon River Studio"
+    BUNDLE_ID "com.moonriverstudio.arrangermanager"
     PRODUCT_NAME "Arranger Manager")
 juce_generate_juce_header(ArrangerManagerDesktop)
 target_sources(ArrangerManagerDesktop PRIVATE

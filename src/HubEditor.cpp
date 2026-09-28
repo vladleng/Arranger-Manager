@@ -111,10 +111,10 @@ void progressBar(juce::Graphics& g, int x, int height, int width, int done, int 
     g.setFont(juce::FontOptions(11.0f));
     if (total == 0)
     {
-        g.drawText("-", {x, 0, width, height}, juce::Justification::centredLeft);
+        g.drawText("-", juce::Rectangle<int> {x, 0, width, height}, juce::Justification::centredLeft);
         return;
     }
-    g.drawText(juce::String(done) + "/" + juce::String(total), {x, 1, width, 17},
+    g.drawText(juce::String(done) + "/" + juce::String(total), juce::Rectangle<int> {x, 1, width, 17},
         juce::Justification::centredLeft);
     const auto bar = juce::Rectangle<float> {static_cast<float>(x), static_cast<float>(height - 12),
         static_cast<float>(width), 5.0f};
