@@ -136,7 +136,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1 fix3", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1 fix4", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -319,8 +319,9 @@ void HubEditor::refreshSnapshot()
                     if (event.type == "AudioEvent") ++audio;
                     if (event.type == "MusicPart") ++midi;
                 }
-        summary.setText(snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
-            + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
+        summary.setText(snapshot.clipRangeWarning.isNotEmpty() ? snapshot.clipRangeWarning
+            : snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
+                + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
         info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
             juce::dontSendNotification);
         notes.setText("Notes: " + snapshot.notes.replaceCharacters("\r\n", "  "), juce::dontSendNotification);
@@ -389,8 +390,9 @@ void HubEditor::updateHeader(const juce::String& selectedPath)
                 if (event.type == "AudioEvent") ++audio;
                 if (event.type == "MusicPart") ++midi;
             }
-    summary.setText(snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
-        + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
+    summary.setText(snapshot.clipRangeWarning.isNotEmpty() ? snapshot.clipRangeWarning
+        : snapshot.documentTitle + "  |  " + juce::String(arranger::managedTrackCount(snapshot)) + " tracks  |  "
+            + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
     info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
         juce::dontSendNotification);
     notes.setText("Notes: " + snapshot.notes.replaceCharacters("\r\n", "  "), juce::dontSendNotification);
@@ -475,11 +477,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             const auto& section = song.sections[index];
             row.sections.push_back({section.name, savedColour(section.color)});
         }
-        for (const auto& note : arranger::matchingMarkerNotes(song, event))
-        {
-            if (row.notes.isNotEmpty()) row.notes += "  ·  ";
-            row.notes += note.label + ": " + note.text;
-        }
+        row.notes = juce::String::fromUTF8(tag.note.c_str());
         rows.push_back(std::move(row));
     };
 

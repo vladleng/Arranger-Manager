@@ -15,7 +15,7 @@ int main()
     using namespace arranger;
     const auto wip = parse(" WIP | p1 | переход в припев ");
     bool passed = check(wip.valid && wip.status == Status::wip && wip.priority == Priority::p1
-        && wip.note == "переход в припев", "WIP tag");
+        && wip.title.empty() && wip.note == "переход в припев", "legacy WIP tag");
     passed &= check(parse("DONE | P2").valid, "DONE tag");
     passed &= check(parse("POOL | P2").valid && parse("POOL | P2").status == Status::pool, "POOL tag");
     passed &= check(parse("WAIT | P3").status == Status::wait, "WAIT tag");
@@ -30,12 +30,17 @@ int main()
     passed &= check(displayClipName("TODO | P2", "Audio") == "Audio", "status and priority hidden from title");
     passed &= check(displayClipName("REVIEW | P3", "MIDI") == "MIDI", "legacy status hidden from title");
     passed &= check(displayClipName("WIP", "Audio") == "Audio", "status-only title");
-    passed &= check(displayClipName("WIP | P2 | Сделать 5 партий", "Audio") == "Сделать 5 партий", "tag note title");
+    passed &= check(displayClipName("WIP | P2 | Сделать 5 партий", "Audio") == "Audio", "legacy note separate from title");
     passed &= check(displayClipName("[Verse 2]", "Audio") == "[Verse 2]", "ordinary title preserved");
-    passed &= check(parse("WIP | Сделать 5 партий").valid && parse("WIP | Сделать 5 партий").priority == Priority::none,
-        "status and note without priority");
+    passed &= check(parse("WIP | Сделать 5 партий").valid && parse("WIP | Сделать 5 партий").priority == Priority::none
+        && parse("WIP | Сделать 5 партий").title == "Сделать 5 партий"
+        && parse("WIP | Сделать 5 партий").note.empty(), "status and title without note");
     passed &= check(displayClipName("WIP | Сделать 5 партий", "Audio") == "Сделать 5 партий", "new clip title");
-    passed &= check(displayClipName("WAIT | микс | переход", "Audio") == "микс | переход", "note with separator");
+    passed &= check(displayClipName("WAIT | микс | переход", "Audio") == "микс"
+        && parse("WAIT | микс | переход").note == "переход", "title and note separated");
+    passed &= check(parse("DONE | Гитара | Проверить реверберацию | и панораму").title == "Гитара"
+        && parse("DONE | Гитара | Проверить реверберацию | и панораму").note == "Проверить реверберацию | и панораму",
+        "remaining separators belong to note");
     passed &= check(parseTrackName("WIP").status == Status::wip && parseTrackName("WIP").name.empty(),
         "status-only track name");
     passed &= check(parseTrackName("WAIT | Гитара | дубль").status == Status::wait

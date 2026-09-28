@@ -14,6 +14,7 @@ struct Tag
 {
     Status status = Status::unmarked;
     Priority priority = Priority::none;
+    std::string title;
     std::string note;
     bool valid = false;
 };
@@ -88,7 +89,7 @@ inline const char* label(Priority priority)
     }
 }
 
-// New clip names use STATUS or STATUS | optional note. Older STATUS | P1 | note
+// Clip names use STATUS | title | optional note. Older STATUS | P1 | note
 // names remain readable, but the embedded priority is not shown in the project view.
 // Legacy GROUP:STATUS remains readable.
 // Unknown names are ordinary DAW events and are not counted as arrangement tags.
@@ -126,7 +127,8 @@ inline Tag parse(std::string_view name)
     {
         const auto candidate = upper(first);
         if (candidate.size() >= 2 && candidate[0] == 'P' && std::isdigit(static_cast<unsigned char>(candidate[1]))) return {};
-        result.note = trim(name.substr(pipe + 1));
+        result.title = first;
+        if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
     }
     result.valid = true;
     return result;
@@ -147,6 +149,6 @@ inline std::string displayClipName(std::string_view name, std::string_view fallb
 {
     const auto tag = parse(name);
     if (!tag.valid) return trim(name);
-    return tag.note.empty() ? std::string(fallback) : tag.note;
+    return tag.title.empty() ? std::string(fallback) : tag.title;
 }
 }

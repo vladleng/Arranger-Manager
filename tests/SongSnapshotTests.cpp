@@ -38,14 +38,18 @@ int main()
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
         "<MediaTrack name=\"WIP | Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
-        "<List x:id=\"Events\"><AudioEvent name=\"WIP | P2\" start=\"32\" length=\"8\"/>"
+        "<List x:id=\"Events\"><AudioEvent name=\"WIP | Drums | Record five parts\" start=\"32\" length=\"8\"/>"
+        "<AudioEvent name=\"DONE | Before Start\" start=\"20\" length=\"4\"/>"
+        "<AudioEvent name=\"DONE | Scratch Pad\" start=\"50\" length=\"4\"/>"
+        "<AudioEvent name=\"DONE | Beyond End\" start=\"46\" length=\"4\"/>"
         "</List></MediaTrack>"
         "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
-        "<List x:id=\"Events\"><MusicPart name=\"DONE | P1\" start=\"40\" length=\"4\"/>"
+        "<List x:id=\"Events\"><MusicPart name=\"DONE | P1\" start=\"40\" length=\"8\"/>"
+        "<MusicPart name=\"DONE | At End\" start=\"48\" length=\"1\"/>"
         "</List></MediaTrack>"
         "<ArrangerTrack color=\"FF8A6B32\"><ArrangerEvent name=\"Intro\" start=\"32\" length=\"8\" color=\"FFFFAD2A\"/>"
         "<ArrangerEvent name=\"Verse\" start=\"40\" length=\"8\"/></ArrangerTrack>"
-        "<MarkerTrack><MarkerEvent name=\"Start\"/><MarkerEvent name=\"mk1 | Record drums\" start=\"32\"/>"
+        "<MarkerTrack><MarkerEvent name=\"Start\" start=\"32\"/><MarkerEvent name=\"mk1 | Record drums\" start=\"32\"/>"
         "<MarkerEvent name=\"mk2 Check timing\" start=\"34\"/>"
         "<MarkerEvent name=\"Ordinary marker\" start=\"35\"/>"
         "<MarkerEvent name=\"mk3: Next clip\" start=\"40\"/><MarkerEvent name=\"End\" start=\"48\"/>"
@@ -78,22 +82,15 @@ int main()
         && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
         && check(snapshot.markers.size() == 6 && snapshot.markers[0].start == "0"
             && snapshot.markers[5].name == "End", "Marker mismatch")
-        && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
+        && check(snapshot.events[0].name == "WIP | Drums | Record five parts" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")
-        && check(arranger::matchingMarkerNotes(snapshot, snapshot.events[0]).size() == 2
-            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[0].label == "mk1"
-            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[0].text == "Record drums"
-            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[1].label == "mk2"
-            && arranger::matchingMarkerNotes(snapshot, snapshot.events[0])[1].text == "Check timing",
-            "Multiple marker notes did not attach to first clip")
-        && check(arranger::matchingMarkerNotes(snapshot, snapshot.events[1]).size() == 1
-            && arranger::matchingMarkerNotes(snapshot, snapshot.events[1])[0].label == "mk3",
-            "Marker at clip end must attach to next clip")
-        && check(arranger::matchingMarkerNotes(snapshot,
-            arranger::SongEvent{.start = "33", .length = "4"}).size() == 1,
-            "Marker over overlapping clip must also attach to it")
+        && check(arranger::parse(snapshot.events[0].name.toStdString()).title == "Drums"
+            && arranger::parse(snapshot.events[0].name.toStdString()).note == "Record five parts",
+            "Clip title and note mismatch")
+        && check(snapshot.tracks[0].events.size() == 1 && snapshot.events.size() == 2
+            && snapshot.clipRangeWarning.isEmpty(), "Events outside Start/End entered snapshot")
         && check(arranger::matchingSectionIndices(snapshot,
             arranger::SongEvent{.start = "39", .length = "2"}) == std::vector<size_t>({0, 1}), "Boundary overlap mismatch")
         && check(arranger::clipProgress(snapshot.events) == std::pair<int, int>{1, 2}, "Tagged clip progress mismatch")
@@ -115,5 +112,22 @@ int main()
             && arranger::clipProgress(markedSong.tracks[1].events) == std::pair<int, int>{1, 1},
             "Track progress must still count tagged clips");
     file.deleteFile();
-    return passed && additional ? 0 : 1;
+    juce::ZipFile::Builder invalidZip;
+    add(invalidZip, "metainfo.xml", "<MetaInformation/>");
+    add(invalidZip, "Song/song.xml", "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
+        "<MediaTrack name=\"WIP | Drums\"><List x:id=\"Events\">"
+        "<AudioEvent name=\"DONE | Take\" start=\"1\" length=\"1\"/>"
+        "</List></MediaTrack><MarkerTrack><MarkerEvent name=\"Start\" start=\"0\"/>"
+        "</MarkerTrack></List></Attributes></Song>");
+    {
+        juce::FileOutputStream output(file);
+        if (!check(output.openedOk() && invalidZip.writeToStream(output, nullptr), "Cannot create invalid-range fixture")) return 1;
+        output.flush();
+    }
+    const auto invalid = arranger::readSongSnapshot(file);
+    const auto missingRange = check(invalid.ok() && invalid.events.empty()
+        && invalid.tracks.size() == 1 && invalid.tracks[0].events.empty()
+        && invalid.clipRangeWarning.isNotEmpty(), "Missing End must hide clips with warning");
+    file.deleteFile();
+    return passed && additional && missingRange ? 0 : 1;
 }
