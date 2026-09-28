@@ -1,17 +1,31 @@
 #include "ArrangementTag.h"
-#include <cassert>
+#include <iostream>
+
+namespace
+{
+bool check(bool ok, const char* message)
+{
+    if (!ok) std::cerr << message << '\n';
+    return ok;
+}
+}
 
 int main()
 {
     using namespace arranger;
-    auto tag = parse(" WIP | p1 | переход в припев ");
-    assert(tag.valid && tag.status == Status::wip && tag.priority == Priority::p1);
-    assert(tag.note == "переход в припев");
-    assert(parse("DONE | P2").valid);
-    assert(parse("POOL | P2").valid && parse("POOL | P2").status == Status::pool);
-    assert(parse("BRASS:DONE").status == Status::done);
-    assert(parse("[Intro]").status == Status::unmarked);
-    assert(! parse("WIP | P9 | bad priority").valid);
-    assert(! parse("WIP | P1junk").valid);
-    assert(parse("BLOCKED | P0 | waiting").priority == Priority::p0);
+    const auto wip = parse(" WIP | p1 | переход в припев ");
+    bool passed = check(wip.valid && wip.status == Status::wip && wip.priority == Priority::p1
+        && wip.note == "переход в припев", "WIP tag");
+    passed &= check(parse("DONE | P2").valid, "DONE tag");
+    passed &= check(parse("POOL | P2").valid && parse("POOL | P2").status == Status::pool, "POOL tag");
+    passed &= check(parse("WAIT | P3").status == Status::wait, "WAIT tag");
+    passed &= check(parse("REVIEW | P3").status == Status::wait
+        && std::string(label(parse("REVIEW | P3").status)) == "WAIT", "legacy REVIEW alias");
+    passed &= check(parse("TODO | P4").priority == Priority::p4, "P4 tag");
+    passed &= check(parse("BRASS:DONE").status == Status::done, "legacy group tag");
+    passed &= check(parse("[Intro]").status == Status::unmarked, "ordinary clip");
+    passed &= check(!parse("WIP | P9 | bad priority").valid, "invalid priority");
+    passed &= check(!parse("WIP | P1junk").valid, "malformed priority");
+    passed &= check(!parse("BLOCKED | P0 | waiting").valid, "retired P0");
+    return passed ? 0 : 1;
 }

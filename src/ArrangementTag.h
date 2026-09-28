@@ -7,8 +7,8 @@
 
 namespace arranger
 {
-enum class Status { unmarked, pool, todo, wip, draft, review, done, blocked };
-enum class Priority { none, p0, p1, p2, p3 };
+enum class Status { unmarked, pool, todo, wip, draft, wait, done, blocked };
+enum class Priority { none, p1, p2, p3, p4 };
 
 struct Tag
 {
@@ -39,7 +39,7 @@ inline Status parseStatus(std::string_view text)
     if (code == "TODO") return Status::todo;
     if (code == "WIP") return Status::wip;
     if (code == "DRAFT") return Status::draft;
-    if (code == "REVIEW") return Status::review;
+    if (code == "WAIT" || code == "REVIEW") return Status::wait; // Preserve older project names.
     if (code == "DONE") return Status::done;
     if (code == "BLOCKED") return Status::blocked;
     return Status::unmarked;
@@ -48,10 +48,10 @@ inline Status parseStatus(std::string_view text)
 inline Priority parsePriority(std::string_view text)
 {
     const auto code = upper(trim(text));
-    if (code == "P0") return Priority::p0;
     if (code == "P1") return Priority::p1;
     if (code == "P2") return Priority::p2;
     if (code == "P3") return Priority::p3;
+    if (code == "P4") return Priority::p4;
     return Priority::none;
 }
 
@@ -63,7 +63,7 @@ inline const char* label(Status status)
         case Status::todo: return "TODO";
         case Status::wip: return "WIP";
         case Status::draft: return "DRAFT";
-        case Status::review: return "REVIEW";
+        case Status::wait: return "WAIT";
         case Status::done: return "DONE";
         case Status::blocked: return "BLOCKED";
         default: return "UNMARKED";
@@ -74,10 +74,10 @@ inline const char* label(Priority priority)
 {
     switch (priority)
     {
-        case Priority::p0: return "P0";
         case Priority::p1: return "P1";
         case Priority::p2: return "P2";
         case Priority::p3: return "P3";
+        case Priority::p4: return "P4";
         default: return "--";
     }
 }
@@ -110,7 +110,7 @@ inline Tag parse(std::string_view name)
     const auto second = name.find('|', pipe + 1);
     const auto priorityText = name.substr(pipe + 1, second == std::string_view::npos ? second : second - pipe - 1);
     result.priority = parsePriority(priorityText);
-    if (result.priority == Priority::none) return result;
+    if (result.priority == Priority::none) return {};
     if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
     result.valid = true;
     return result;

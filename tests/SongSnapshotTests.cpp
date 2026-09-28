@@ -36,7 +36,11 @@ int main()
         "</List></MediaTrack>"
         "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
         "<List x:id=\"Events\"><MusicPart name=\"DONE | P1\" start=\"40\" length=\"4\"/>"
-        "</List></MediaTrack></List></Attributes></Song>");
+        "</List></MediaTrack>"
+        "<ArrangerTrack><ArrangerEvent name=\"Intro\" start=\"32\" length=\"8\"/>"
+        "<ArrangerEvent name=\"Verse\" start=\"40\" length=\"8\"/></ArrangerTrack>"
+        "<MarkerTrack><MarkerEvent name=\"Start\"/><MarkerEvent name=\"End\" start=\"48\"/>"
+        "</MarkerTrack></List></Attributes></Song>");
 
     {
         juce::FileOutputStream output(file);
@@ -48,6 +52,10 @@ int main()
         && check(snapshot.documentTitle == "Test Song", "Title mismatch")
         && check(snapshot.artist == "Artist" && snapshot.notes == "Project notes", "Metadata mismatch")
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
+        && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
+        && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro", "Arrangement mismatch")
+        && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
+            && snapshot.markers[1].name == "End", "Marker mismatch")
         && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "Drums", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch");
     file.deleteFile();

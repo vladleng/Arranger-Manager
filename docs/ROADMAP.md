@@ -104,7 +104,7 @@ ArrangementRegion
 ```text
 TODO
 DRAFT
-REVIEW
+WAIT
 DONE
 ```
 

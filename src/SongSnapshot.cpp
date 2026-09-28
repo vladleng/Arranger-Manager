@@ -96,8 +96,28 @@ SongSnapshot readSongSnapshot(const juce::File& song)
             if (!trackList->hasTagName("List") || trackList->getStringAttribute("x_id") != "Tracks") continue;
             for (auto* track = trackList->getFirstChildElement(); track != nullptr; track = track->getNextElement())
             {
+                if (track->hasTagName("ArrangerTrack") || track->hasTagName("MarkerTrack"))
+                {
+                    const auto arrangerTrack = track->hasTagName("ArrangerTrack");
+                    for (auto* item = track->getFirstChildElement(); item != nullptr; item = item->getNextElement())
+                    {
+                        if (!(arrangerTrack ? item->hasTagName("ArrangerEvent") : item->hasTagName("MarkerEvent"))) continue;
+                        TimelineItem entry;
+                        entry.type = item->getTagName();
+                        entry.name = item->getStringAttribute("name");
+                        entry.start = item->getStringAttribute("start", "0");
+                        entry.length = item->getStringAttribute("length", "0");
+                        entry.timeFormat = item->getStringAttribute("timeFormat", track->getStringAttribute("timeFormat"));
+                        (arrangerTrack ? snapshot.sections : snapshot.markers).push_back(std::move(entry));
+                    }
+                    continue;
+                }
                 if (!track->hasTagName("MediaTrack")) continue;
                 ++snapshot.trackCount;
+                SongTrack songTrack;
+                songTrack.id = track->getStringAttribute("trackID");
+                songTrack.name = track->getStringAttribute("name");
+                songTrack.mediaType = track->getStringAttribute("mediaType");
                 for (auto* events = track->getFirstChildElement(); events != nullptr; events = events->getNextElement())
                 {
                     if (!events->hasTagName("List") || events->getStringAttribute("x_id") != "Events") continue;
@@ -113,9 +133,11 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                         event.start = item->getStringAttribute("start", "0");
                         event.length = item->getStringAttribute("length", "0");
                         event.timeFormat = item->getStringAttribute("timeFormat");
+                        songTrack.events.push_back(event);
                         snapshot.events.push_back(std::move(event));
                     }
                 }
+                snapshot.tracks.push_back(std::move(songTrack));
             }
         }
     }

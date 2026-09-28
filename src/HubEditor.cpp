@@ -1,5 +1,6 @@
 #include "HubEditor.h"
 #include <algorithm>
+#include <numeric>
 
 namespace
 {
@@ -11,36 +12,69 @@ juce::Colour statusColor(arranger::Status s)
         case arranger::Status::todo: return juce::Colour(0xff818a96);
         case arranger::Status::wip: return juce::Colour(0xff3b82f6);
         case arranger::Status::draft: return juce::Colour(0xff35b8d6);
-        case arranger::Status::review: return juce::Colour(0xffe9b949);
+        case arranger::Status::wait: return juce::Colour(0xffd3a438);
         case arranger::Status::done: return juce::Colour(0xff34a878);
         case arranger::Status::blocked: return juce::Colour(0xffdd5b61);
         default: return juce::Colour(0xff56606a);
     }
 }
+
 juce::Colour priorityColor(arranger::Priority p)
 {
     switch (p)
     {
-        case arranger::Priority::p0: return juce::Colour(0xffdd5b61);
-        case arranger::Priority::p1: return juce::Colour(0xffed9844);
-        case arranger::Priority::p2: return juce::Colour(0xff679fe8);
-        case arranger::Priority::p3: return juce::Colour(0xff929aaa);
+        case arranger::Priority::p1: return juce::Colour(0xffdd5b61);
+        case arranger::Priority::p2: return juce::Colour(0xffed9844);
+        case arranger::Priority::p3: return juce::Colour(0xffd3a438);
+        case arranger::Priority::p4: return juce::Colour(0xff929aaa);
         default: return juce::Colour(0xff56606a);
     }
 }
-void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour color, const char* label)
+
+void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, const char* label)
 {
-    g.setColour(color);
+    g.setColour(colour);
     g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
     g.setColour(juce::Colours::white);
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     g.drawText(label, bounds, juce::Justification::centred);
+}
+
+struct Columns { int status, priority, position, nameWidth; bool showPosition; };
+Columns columnsFor(int width)
+{
+    const bool wide = width >= 680;
+    const int status = wide ? width - 332 : width - 148;
+    return { status, wide ? width - 217 : width - 53, width - 135, status - 12, wide };
+}
+
+juce::String progress(const std::vector<arranger::SongEvent>& events)
+{
+    int tagged = 0, done = 0;
+    for (const auto& event : events)
+    {
+        const auto tag = arranger::parse(event.name.toStdString());
+        if (tag.valid) { ++tagged; if (tag.status == arranger::Status::done) ++done; }
+    }
+    return tagged == 0 ? juce::String("-") : juce::String(done) + "/" + juce::String(tagged) + " DONE";
+}
+
+template <typename Items>
+std::vector<size_t> orderByStart(const Items& items)
+{
+    std::vector<size_t> order(items.size());
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
+    {
+        return items[a].start.getDoubleValue() < items[b].start.getDoubleValue();
+    });
+    return order;
 }
 }
 
 HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
 {
-    heading.setText("Arranger Manager Hub 0.0f", juce::dontSendNotification);
+    heading.setText("Arranger Manager Hub 0.0g", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -69,18 +103,38 @@ HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processo
     refresh.onClick = [this] { refreshSnapshot(); };
     addAndMakeVisible(choose);
     addAndMakeVisible(refresh);
-    list.setRowHeight(38);
+    list.setRowHeight(36);
     list.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff222b33));
     addAndMakeVisible(list);
     setResizable(true, true);
     setResizeLimits(460, 320, 1600, 1200);
-    setSize(900, 560);
+    setSize(980, 620);
     timerCallback();
     startTimerHz(1);
 }
 
 HubEditor::~HubEditor() { stopTimer(); }
-void HubEditor::paint(juce::Graphics& g) { g.fillAll(juce::Colour(0xff1d232b)); }
+
+void HubEditor::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colour(0xff1d232b));
+    if (list.getWidth() == 0) return;
+    const auto header = juce::Rectangle<int> {list.getX(), list.getY() - 27, list.getWidth(), 26};
+    g.setColour(juce::Colour(0xff2a343e));
+    g.fillRect(header);
+    g.setColour(juce::Colour(0xffaebdca));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    const auto layout = columnsFor(list.getWidth());
+    g.drawText("NAME", juce::Rectangle<int> {header.getX() + 12, header.getY(), layout.nameWidth - 12, header.getHeight()},
+        juce::Justification::centredLeft);
+    g.drawText("STATUS", juce::Rectangle<int> {header.getX() + layout.status, header.getY(), 100, header.getHeight()},
+        juce::Justification::centredLeft);
+    g.drawText("PRIORITY", juce::Rectangle<int> {header.getX() + layout.priority, header.getY(), 75, header.getHeight()},
+        juce::Justification::centredLeft);
+    if (layout.showPosition)
+        g.drawText("POSITION", juce::Rectangle<int> {header.getX() + layout.position, header.getY(), 130, header.getHeight()},
+            juce::Justification::centredLeft);
+}
 
 void HubEditor::resized()
 {
@@ -90,13 +144,14 @@ void HubEditor::resized()
     refresh.setBounds(header.removeFromRight(90).reduced(3));
     choose.setBounds(header.removeFromRight(130).reduced(3));
     heading.setBounds(header);
-    path.setBounds(area.removeFromTop(28));
-    summary.setBounds(area.removeFromTop(29));
-    info.setBounds(area.removeFromTop(27));
-    notes.setBounds(area.removeFromTop(27));
-    help.setBounds(area.removeFromTop(28));
-    area.removeFromTop(6);
+    path.setBounds(area.removeFromTop(25));
+    summary.setBounds(area.removeFromTop(27));
+    info.setBounds(area.removeFromTop(25));
+    notes.setBounds(area.removeFromTop(25));
+    help.setBounds(area.removeFromTop(23));
+    area.removeFromTop(32);
     list.setBounds(area);
+    repaint();
 }
 
 void HubEditor::timerCallback()
@@ -111,21 +166,25 @@ void HubEditor::timerCallback()
 
 void HubEditor::refreshSnapshot()
 {
-    lastPath = processor.getProjectPath();
+    const auto current = processor.getProjectPath();
+    if (current != lastPath) { collapsed.clear(); expandedSections.clear(); }
+    lastPath = current;
+    snapshot = {};
     rows.clear();
     if (lastPath.isEmpty())
     {
         path.setText("No project selected", juce::dontSendNotification);
         summary.setText("Open the .song file of your current project", juce::dontSendNotification);
+        info.setText({}, juce::dontSendNotification);
+        notes.setText({}, juce::dontSendNotification);
         list.updateContent();
-        list.repaint();
         return;
     }
     const juce::File file(lastPath);
     lastModified = file.existsAsFile() ? file.getLastModificationTime().toMilliseconds() : -1;
     lastSize = file.existsAsFile() ? file.getSize() : -1;
     path.setText(file.getFullPathName(), juce::dontSendNotification);
-    const auto snapshot = arranger::readSongSnapshot(file);
+    snapshot = arranger::readSongSnapshot(file);
     if (!snapshot.ok())
     {
         summary.setText("Cannot read project: " + snapshot.error, juce::dontSendNotification);
@@ -139,14 +198,113 @@ void HubEditor::refreshSnapshot()
         {
             if (event.type == "AudioEvent") ++audio;
             if (event.type == "MusicPart") ++midi;
-            rows.push_back({event, arranger::parse(event.name.toStdString())});
         }
         summary.setText(snapshot.documentTitle + "  |  " + juce::String(snapshot.trackCount) + " tracks  |  "
             + juce::String(audio) + " audio  |  " + juce::String(midi) + " MIDI", juce::dontSendNotification);
         info.setText("Info: " + snapshot.mediaTitle + (snapshot.artist.isNotEmpty() ? "  -  " + snapshot.artist : ""),
             juce::dontSendNotification);
         notes.setText("Notes: " + snapshot.notes.replaceCharacters("\r\n", "  "), juce::dontSendNotification);
+        rebuildRows();
     }
+    list.updateContent();
+    list.repaint();
+}
+
+void HubEditor::rebuildRows()
+{
+    rows.clear();
+    if (!snapshot.ok()) return;
+    auto addClip = [this](const arranger::SongEvent& event, int depth, bool reference)
+    {
+        const auto tag = arranger::parse(event.name.toStdString());
+        const auto name = tag.valid && !tag.note.empty()
+            ? juce::String::fromUTF8(tag.note.c_str()) : event.name;
+        Row row { RowKind::clip, reference ? event.track + " / " + name : name,
+            event.type == "MusicPart" ? "MIDI" : "Audio", "pos " + event.start + "  len " + event.length,
+            {}, tag, {}, depth };
+        rows.push_back(std::move(row));
+    };
+
+    Row project {RowKind::project, snapshot.documentTitle.isNotEmpty() ? snapshot.documentTitle : juce::String("Project"),
+        juce::String(static_cast<int>(snapshot.tracks.size())) + " tracks / "
+            + juce::String(static_cast<int>(snapshot.events.size())) + " clips",
+        {}, progress(snapshot.events), {}, "project", 0, true, !collapsed.contains("project")};
+    rows.push_back(std::move(project));
+    if (collapsed.contains("project")) return;
+
+    rows.push_back({RowKind::group, "Tracks", juce::String(static_cast<int>(snapshot.tracks.size())) + " tracks", {}, {}, {},
+        "tracks", 1, true, !collapsed.contains("tracks")});
+    if (!collapsed.contains("tracks"))
+    {
+        for (size_t i = 0; i < snapshot.tracks.size(); ++i)
+        {
+            const auto& track = snapshot.tracks[i];
+            const std::string key = "track:" + (track.id.isNotEmpty() ? track.id.toStdString() : std::to_string(i));
+            rows.push_back({RowKind::track, track.name,
+                juce::String(static_cast<int>(track.events.size())) + " clips / " + track.mediaType, {}, progress(track.events), {},
+                key, 2, !track.events.empty(), !collapsed.contains(key)});
+            if (collapsed.contains(key)) continue;
+            for (auto index : orderByStart(track.events)) addClip(track.events[index], 3, false);
+        }
+    }
+
+    rows.push_back({RowKind::group, "Arrangement", juce::String(static_cast<int>(snapshot.sections.size())) + " sections", {}, {}, {},
+        "arrangement", 1, true, !collapsed.contains("arrangement")});
+    if (!collapsed.contains("arrangement"))
+    {
+        for (auto index : orderByStart(snapshot.sections))
+        {
+            const auto& section = snapshot.sections[index];
+            const std::string key = "section:" + section.start.toStdString() + ":" + section.name.toStdString();
+            const double start = section.start.getDoubleValue();
+            const double end = start + section.length.getDoubleValue();
+            std::vector<arranger::SongEvent> related;
+            if (end > start)
+                for (const auto& event : snapshot.events)
+                {
+                    const double eventStart = event.start.getDoubleValue();
+                    if (eventStart < end && eventStart + event.length.getDoubleValue() > start)
+                        related.push_back(event);
+                }
+            rows.push_back({RowKind::section, section.name, juce::String(static_cast<int>(related.size())) + " clips",
+                "pos " + section.start + "  len " + section.length, progress(related), {},
+                key, 2, !related.empty(), expandedSections.contains(key)});
+            if (expandedSections.contains(key))
+            {
+                std::stable_sort(related.begin(), related.end(), [](const auto& a, const auto& b)
+                {
+                    return a.start.getDoubleValue() < b.start.getDoubleValue();
+                });
+                for (const auto& event : related) addClip(event, 3, true);
+            }
+        }
+    }
+
+    rows.push_back({RowKind::group, "Markers", juce::String(static_cast<int>(snapshot.markers.size())) + " markers", {}, {}, {},
+        "markers", 1, true, !collapsed.contains("markers")});
+    if (!collapsed.contains("markers"))
+        for (auto index : orderByStart(snapshot.markers))
+        {
+            const auto& marker = snapshot.markers[index];
+            rows.push_back({RowKind::marker, marker.name, {}, "pos " + marker.start, {}, {}, {}, 2});
+        }
+}
+
+void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent&)
+{
+    if (index < 0 || index >= static_cast<int>(rows.size())) return;
+    const auto& row = rows[static_cast<size_t>(index)];
+    if (!row.expandable) return;
+    const auto key = row.key;
+    if (row.kind == RowKind::section)
+    {
+        if (!expandedSections.erase(key)) expandedSections.insert(key);
+    }
+    else
+    {
+        if (!collapsed.erase(key)) collapsed.insert(key);
+    }
+    rebuildRows();
     list.updateContent();
     list.repaint();
 }
@@ -155,23 +313,45 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
 {
     if (index < 0 || index >= static_cast<int>(rows.size()) || width <= 0 || height <= 0) return;
     const auto& row = rows[static_cast<size_t>(index)];
-    g.fillAll(selected ? juce::Colour(0xff354554) : (index % 2 ? juce::Colour(0xff26313b) : juce::Colour(0xff222b33)));
-    const int h = std::max(1, height - 14);
-    badge(g, {9, 7, 92, h}, statusColor(row.tag.status), arranger::label(row.tag.status));
-    if (width < 160) return;
-    badge(g, {109, 7, 46, h}, priorityColor(row.tag.priority), arranger::label(row.tag.priority));
-    g.setColour(juce::Colour(0xffdce4eb));
-    g.setFont(juce::FontOptions(14.0f));
-    if (width < 300) return;
-    const auto trackLabel = row.event.track + (row.event.type == "MusicPart" ? "  MIDI" : "  Audio");
-    g.drawFittedText(trackLabel, {165, 0, 135, height}, juce::Justification::centredLeft, 1);
-    const auto description = row.tag.valid && !row.tag.note.empty()
-        ? juce::String::fromUTF8(row.tag.note.c_str()) : row.event.name;
-    const auto showTime = width >= 700;
-    g.drawFittedText(description, {305, 0, std::max(1, width - 315 - (showTime ? 155 : 0)), height},
+    const bool parent = row.kind == RowKind::project || row.kind == RowKind::group;
+    g.fillAll(selected ? juce::Colour(0xff354554)
+        : parent ? juce::Colour(0xff2b3540)
+        : (index % 2 ? juce::Colour(0xff26313b) : juce::Colour(0xff222b33)));
+    g.setColour(juce::Colour(0xff39434d));
+    g.fillRect(0, height - 1, width, 1);
+    const auto layout = columnsFor(width);
+    const int x = 10 + row.depth * 19;
+    if (row.expandable)
+    {
+        g.setColour(juce::Colour(0xffaebdca));
+        g.setFont(juce::FontOptions(13.0f));
+        g.drawText(row.expanded ? "v" : ">", juce::Rectangle<int> {x, 0, 15, height}, juce::Justification::centred);
+    }
+    const int textX = x + (row.expandable ? 18 : 9);
+    g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
+    g.setFont(juce::FontOptions(14.0f, parent ? juce::Font::bold : juce::Font::plain));
+    const auto title = row.title + (row.detail.isNotEmpty() ? "   " + row.detail : "");
+    g.drawFittedText(title, juce::Rectangle<int> {textX, 0, std::max(1, layout.nameWidth - textX), height},
         juce::Justification::centredLeft, 1);
-    if (!showTime) return;
-    g.setColour(juce::Colour(0xffaebdca));
-    g.drawText("pos " + row.event.start + "  len " + row.event.length,
-        juce::Rectangle<int> {width - 155, 0, 145, height}, juce::Justification::centredRight);
+
+    if (row.kind == RowKind::clip)
+    {
+        if (row.tag.valid)
+            badge(g, {layout.status, 7, 90, height - 14}, statusColor(row.tag.status), arranger::label(row.tag.status));
+        if (row.tag.priority != arranger::Priority::none)
+            badge(g, {layout.priority, 7, 46, height - 14}, priorityColor(row.tag.priority), arranger::label(row.tag.priority));
+    }
+    else if (row.summary.isNotEmpty())
+    {
+        g.setColour(juce::Colour(0xffaebdca));
+        g.setFont(juce::FontOptions(12.0f));
+        g.drawText(row.summary, juce::Rectangle<int> {layout.status, 0, 105, height}, juce::Justification::centredLeft);
+    }
+    if (layout.showPosition && row.position.isNotEmpty())
+    {
+        g.setColour(juce::Colour(0xffaebdca));
+        g.setFont(juce::FontOptions(12.0f));
+        g.drawFittedText(row.position, juce::Rectangle<int> {layout.position, 0, 125, height},
+            juce::Justification::centredLeft, 1);
+    }
 }

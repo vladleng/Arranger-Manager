@@ -9,11 +9,24 @@ struct SongEvent
     juce::String track, trackId, mediaType, type, name, start, length, timeFormat;
 };
 
+struct SongTrack
+{
+    juce::String id, name, mediaType;
+    std::vector<SongEvent> events;
+};
+
+struct TimelineItem
+{
+    juce::String name, start, length, timeFormat, type;
+};
+
 struct SongSnapshot
 {
     juce::String documentTitle, mediaTitle, artist, notes, error;
     int trackCount = 0;
+    std::vector<SongTrack> tracks;
     std::vector<SongEvent> events;
+    std::vector<TimelineItem> sections, markers;
     bool ok() const { return error.isEmpty(); }
 };
 

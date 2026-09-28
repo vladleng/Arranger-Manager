@@ -12,7 +12,7 @@ juce::Colour statusColor(arranger::Status status)
         case arranger::Status::todo: return juce::Colour(0xff818a96);
         case arranger::Status::wip: return juce::Colour(0xff3b82f6);
         case arranger::Status::draft: return juce::Colour(0xff35b8d6);
-        case arranger::Status::review: return juce::Colour(0xffe9b949);
+        case arranger::Status::wait: return juce::Colour(0xffd3a438);
         case arranger::Status::done: return juce::Colour(0xff34a878);
         case arranger::Status::blocked: return juce::Colour(0xffdd5b61);
         default: return juce::Colour(0xff56606a);
@@ -23,10 +23,10 @@ juce::Colour priorityColor(arranger::Priority priority)
 {
     switch (priority)
     {
-        case arranger::Priority::p0: return juce::Colour(0xffdd5b61);
-        case arranger::Priority::p1: return juce::Colour(0xffed9844);
-        case arranger::Priority::p2: return juce::Colour(0xff679fe8);
-        case arranger::Priority::p3: return juce::Colour(0xff929aaa);
+        case arranger::Priority::p1: return juce::Colour(0xffdd5b61);
+        case arranger::Priority::p2: return juce::Colour(0xffed9844);
+        case arranger::Priority::p3: return juce::Colour(0xffd3a438);
+        case arranger::Priority::p4: return juce::Colour(0xff929aaa);
         default: return juce::Colour(0xff56606a);
     }
 }
@@ -70,7 +70,7 @@ void InspectorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(0xff1d232b));
     const arranger::Status statuses[] = { arranger::Status::pool, arranger::Status::todo, arranger::Status::wip, arranger::Status::draft,
-        arranger::Status::review, arranger::Status::done, arranger::Status::blocked };
+        arranger::Status::wait, arranger::Status::done, arranger::Status::blocked };
     int x = 18;
     int y = 62;
     for (const auto status : statuses)
@@ -79,8 +79,8 @@ void InspectorEditor::paint(juce::Graphics& g)
         chip(g, {x, y, 92, 24}, statusColor(status), arranger::label(status));
         x += 100;
     }
-    const arranger::Priority priorities[] = { arranger::Priority::p0, arranger::Priority::p1,
-        arranger::Priority::p2, arranger::Priority::p3 };
+    const arranger::Priority priorities[] = { arranger::Priority::p1, arranger::Priority::p2,
+        arranger::Priority::p3, arranger::Priority::p4 };
     x = 18;
     for (const auto priority : priorities)
     {
