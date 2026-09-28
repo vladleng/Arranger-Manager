@@ -18,7 +18,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
-    enum class RowKind { folder, project, group, track, clip, marker };
+    enum class RowKind { folder, project, track, clip };
     struct SectionLabel { juce::String name; juce::Colour colour; };
     struct Row
     {

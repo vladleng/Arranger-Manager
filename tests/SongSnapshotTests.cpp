@@ -37,7 +37,7 @@ int main()
     add(zip, "Song/song.xml", std::string("\xEF\xBB\xBF") +
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
-        "<MediaTrack name=\"Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
+        "<MediaTrack name=\"WIP | Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
         "<List x:id=\"Events\"><AudioEvent name=\"WIP | P2\" start=\"32\" length=\"8\"/>"
         "</List></MediaTrack>"
         "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
@@ -60,9 +60,9 @@ int main()
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
         && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
         && check(snapshot.tracks[0].notes == "WIP | Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
-        && check(arranger::parseTrackNote(snapshot.tracks[0].notes.toStdString()).status == arranger::Status::wip
-            && arranger::parseTrackNote(snapshot.tracks[0].notes.toStdString()).note == "Record five parts",
-            "Track status did not come from project notepad")
+        && check(arranger::parseTrackName(snapshot.tracks[0].name.toStdString()).status == arranger::Status::wip
+            && arranger::parseTrackName(snapshot.tracks[0].name.toStdString()).name == "Drums",
+            "Track status did not come from its name")
         && check(snapshot.tracks[0].color == "FF34A9F2" && snapshot.tracks[1].color.isEmpty(), "Track colour mismatch")
         && check(snapshot.sections.size() == 2 && snapshot.sections[0].name == "Intro"
             && snapshot.sections[0].color == "FFFFAD2A" && snapshot.sections[1].color == "FF8A6B32", "Arrangement mismatch")
@@ -75,7 +75,7 @@ int main()
         && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
         && check(snapshot.markers.size() == 2 && snapshot.markers[0].start == "0"
             && snapshot.markers[1].name == "End", "Marker mismatch")
-        && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "Drums", "Audio event mismatch")
+        && check(snapshot.events[0].name == "WIP | P2" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")
@@ -86,12 +86,19 @@ int main()
             arranger::SongEvent{.name = "Plain take"}}) == std::pair<int, int>{1, 2},
             "Unmarked clip entered progress denominator")
         && check(arranger::managedTrackCount(snapshot) == 1 && arranger::songProgress(snapshot)
-            == std::pair<int, int>{0, 1}, "Unmarked track entered song progress");
+            == std::pair<int, int>{0, 1}, "Song progress must count marked track statuses, not clips");
     auto markedSong = snapshot;
-    markedSong.tracks[1].notes = "DONE";
+    markedSong.tracks[1].name = "DONE | Keys";
+    auto completedClipOnOpenTrack = snapshot;
+    completedClipOnOpenTrack.tracks[0].events[0].name = "DONE | Take ready";
     const auto additional = check(arranger::managedTrackCount(markedSong) == 2
         && arranger::songProgress(markedSong) == std::pair<int, int>{1, 2},
-        "Marked track not included in song progress");
+        "DONE track not included in song progress")
+        && check(arranger::songProgress(completedClipOnOpenTrack) == std::pair<int, int>{0, 1},
+            "DONE clip must not complete a WIP track in song progress")
+        && check(arranger::clipProgress(markedSong.tracks[0].events) == std::pair<int, int>{0, 1}
+            && arranger::clipProgress(markedSong.tracks[1].events) == std::pair<int, int>{1, 1},
+            "Track progress must still count tagged clips");
     file.deleteFile();
     return passed && additional ? 0 : 1;
 }

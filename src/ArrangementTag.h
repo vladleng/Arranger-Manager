@@ -18,10 +18,10 @@ struct Tag
     bool valid = false;
 };
 
-struct TrackNoteTag
+struct TrackNameTag
 {
     Status status = Status::unmarked;
-    std::string note;
+    std::string name;
 };
 
 inline std::string trim(std::string_view text)
@@ -132,19 +132,14 @@ inline Tag parse(std::string_view name)
     return result;
 }
 
-// The first line of the Studio Pro track notepad may be STATUS or
-// STATUS | note. Any following lines remain part of the note. Other text is
-// left untouched; this never interprets a status word inside prose.
-inline TrackNoteTag parseTrackNote(std::string_view text)
+// A managed track is named STATUS | track name (or just STATUS).
+// An ordinary track name is never interpreted by scanning for status words.
+inline TrackNameTag parseTrackName(std::string_view text)
 {
-    const auto lineEnd = text.find_first_of("\r\n");
-    const auto firstLine = text.substr(0, lineEnd);
-    const auto separator = firstLine.find('|');
-    const auto status = parseStatus(firstLine.substr(0, separator));
+    const auto separator = text.find('|');
+    const auto status = parseStatus(text.substr(0, separator));
     if (status == Status::unmarked) return {status, trim(text)};
-    const auto inlineNote = separator == std::string_view::npos ? std::string() : trim(firstLine.substr(separator + 1));
-    const auto rest = lineEnd == std::string_view::npos ? std::string() : trim(text.substr(lineEnd + 1));
-    return {status, inlineNote.empty() ? rest : rest.empty() ? inlineNote : inlineNote + "\n" + rest};
+    return {status, separator == std::string_view::npos ? std::string() : trim(text.substr(separator + 1))};
 }
 
 // UI title only; keep the original event name intact in Studio Pro.

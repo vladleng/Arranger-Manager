@@ -22,7 +22,7 @@ inline std::pair<int, int> clipProgress(const std::vector<SongEvent>& events)
 
 inline bool managedTrack(const SongTrack& track)
 {
-    return parseTrackNote(track.notes.toStdString()).status != Status::unmarked;
+    return parseTrackName(track.name.toStdString()).status != Status::unmarked;
 }
 
 inline int managedTrackCount(const SongSnapshot& song)
@@ -38,10 +38,10 @@ inline std::pair<int, int> songProgress(const SongSnapshot& song)
     int done = 0, total = 0;
     for (const auto& track : song.tracks)
     {
-        if (!managedTrack(track)) continue;
-        const auto [d, t] = clipProgress(track.events);
-        done += d;
-        total += t;
+        const auto status = parseTrackName(track.name.toStdString()).status;
+        if (status == Status::unmarked) continue;
+        ++total;
+        if (status == Status::done) ++done;
     }
     return {done, total};
 }

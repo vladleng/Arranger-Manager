@@ -36,15 +36,14 @@ int main()
         "status and note without priority");
     passed &= check(displayClipName("WIP | Сделать 5 партий", "Audio") == "Сделать 5 партий", "new clip title");
     passed &= check(displayClipName("WAIT | микс | переход", "Audio") == "микс | переход", "note with separator");
-    passed &= check(parseTrackNote("WIP").status == Status::wip && parseTrackNote("WIP").note.empty(),
-        "track status from notepad");
-    passed &= check(parseTrackNote("WAIT | Ждём вокал\r\nПроверить баланс").status == Status::wait
-        && parseTrackNote("WAIT | Ждём вокал\r\nПроверить баланс").note == "Ждём вокал\nПроверить баланс",
-        "track status and multiline note");
-    passed &= check(parseTrackNote("DONE\nГитара записана").status == Status::done
-        && parseTrackNote("DONE\nГитара записана").note == "Гитара записана", "track status on first line");
-    passed &= check(parseTrackNote("Сделать WIP партию").status == Status::unmarked
-        && parseTrackNote("Сделать WIP партию").note == "Сделать WIP партию", "prose not mistaken for status");
-    passed &= check(parseTrackNote("REVIEW | Старый статус").status == Status::wait, "legacy notepad status");
+    passed &= check(parseTrackName("WIP").status == Status::wip && parseTrackName("WIP").name.empty(),
+        "status-only track name");
+    passed &= check(parseTrackName("WAIT | Гитара | дубль").status == Status::wait
+        && parseTrackName("WAIT | Гитара | дубль").name == "Гитара | дубль", "track name after status");
+    passed &= check(parseTrackName("Сделать WIP партию").status == Status::unmarked
+        && parseTrackName("Сделать WIP партию").name == "Сделать WIP партию",
+        "prose not mistaken for status");
+    passed &= check(parseTrackName("REVIEW | Старое имя").status == Status::wait, "legacy status alias");
+    passed &= check(parseTrackName("WIP Drums").status == Status::unmarked, "require status delimiter");
     return passed ? 0 : 1;
 }
