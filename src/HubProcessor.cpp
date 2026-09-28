@@ -12,7 +12,30 @@ bool HubProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
         && (input == juce::AudioChannelSet::mono() || input == juce::AudioChannelSet::stereo());
 }
 
-juce::AudioProcessorEditor* HubProcessor::createEditor() { return new HubEditor(*this); }
+namespace
+{
+class HubPluginEditor final : public juce::AudioProcessorEditor
+{
+public:
+    explicit HubPluginEditor(HubProcessor& processor)
+        : juce::AudioProcessorEditor(&processor),
+          view([&processor] { return processor.getProjectPath(); },
+              [&processor](juce::String path) { processor.setProjectPath(std::move(path)); })
+    {
+        addAndMakeVisible(view);
+        setResizable(true, true);
+        setResizeLimits(460, 320, 1600, 1200);
+        setSize(view.getWidth(), view.getHeight());
+    }
+
+    void resized() override { view.setBounds(getLocalBounds()); }
+
+private:
+    HubEditor view;
+};
+}
+
+juce::AudioProcessorEditor* HubProcessor::createEditor() { return new HubPluginEditor(*this); }
 void HubProcessor::getStateInformation(juce::MemoryBlock& data)
 {
     juce::XmlElement state("ArrangerManagerHubState");

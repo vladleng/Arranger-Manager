@@ -75,6 +75,20 @@ endif()
 target_link_libraries(ArrangerManagerHub PRIVATE juce::juce_audio_utils
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
 
+juce_add_gui_app(ArrangerManagerDesktop
+    COMPANY_NAME "Moon River Studio"
+    PRODUCT_NAME "Arranger Manager")
+juce_generate_juce_header(ArrangerManagerDesktop)
+target_sources(ArrangerManagerDesktop PRIVATE
+    src/ArrangementTag.h src/StudioProColour.h src/SongSnapshot.h src/SongSnapshot.cpp
+    src/HubEditor.h src/HubEditor.cpp src/HubApplication.cpp)
+target_compile_definitions(ArrangerManagerDesktop PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+if(MSVC)
+    target_compile_options(ArrangerManagerDesktop PRIVATE /utf-8)
+endif()
+target_link_libraries(ArrangerManagerDesktop PRIVATE juce::juce_gui_extra
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+
 include(CTest)
 add_executable(ArrangementTagTests tests/ArrangementTagTests.cpp)
 target_include_directories(ArrangementTagTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

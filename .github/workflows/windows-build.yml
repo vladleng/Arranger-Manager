@@ -1,4 +1,4 @@
-name: Windows Hub Build
+name: Windows App and Hub Build
 on:
   push:
     branches: [main]
@@ -13,16 +13,16 @@ jobs:
       - name: Configure
         run: cmake -S . -B build
       - name: Build
-        run: cmake --build build --config Release --target ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests --parallel 2
+        run: cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests --parallel 2
       - name: Test project reader and name parser
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0k fix2" | Out-Null
-          Copy-Item -Recurse -Force "build/ArrangerManagerHub_artefacts/Release/VST3/Arranger Manager Hub.vst3" "package/Arranger Manager 0.0k fix2"
-          Copy-Item -Force "docs/HUB-0.0k.md" "package/Arranger Manager 0.0k fix2"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.0l" | Out-Null
+          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.0l"
+          Copy-Item -Force "docs/HUB-0.0l.md" "package/Arranger Manager 0.0l"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-Hub-0.0k-fix2-Windows
+          name: Arranger-Manager-0.0l-Windows-App
           path: package

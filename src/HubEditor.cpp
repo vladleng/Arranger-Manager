@@ -2,6 +2,7 @@
 #include "StudioProColour.h"
 #include <algorithm>
 #include <numeric>
+#include <utility>
 
 namespace
 {
@@ -112,9 +113,11 @@ std::vector<size_t> orderByStart(const Items& items)
 }
 }
 
-HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processor(p)
+HubEditor::HubEditor(std::function<juce::String()> getPath,
+    std::function<void(juce::String)> setPath)
+    : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath))
 {
-    heading.setText("Arranger Manager Hub 0.0k fix2", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.0l", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -136,7 +139,7 @@ HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processo
                 if (safe == nullptr) return;
                 const auto file = selected.getResult();
                 if (file == juce::File()) return;
-                safe->processor.setProjectPath(file.getFullPathName());
+                safe->setProjectPath(file.getFullPathName());
                 safe->refreshSnapshot();
             });
     };
@@ -146,8 +149,6 @@ HubEditor::HubEditor(HubProcessor& p) : juce::AudioProcessorEditor(&p), processo
     list.setRowHeight(36);
     list.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff222b33));
     addAndMakeVisible(list);
-    setResizable(true, true);
-    setResizeLimits(460, 320, 1600, 1200);
     setSize(980, 620);
     timerCallback();
     startTimerHz(1);
@@ -198,7 +199,7 @@ void HubEditor::resized()
 
 void HubEditor::timerCallback()
 {
-    const auto current = processor.getProjectPath();
+    const auto current = getProjectPath();
     if (current.isEmpty()) return;
     const juce::File file(current);
     const auto modified = file.existsAsFile() ? file.getLastModificationTime().toMilliseconds() : -1;
@@ -208,7 +209,7 @@ void HubEditor::timerCallback()
 
 void HubEditor::refreshSnapshot()
 {
-    const auto current = processor.getProjectPath();
+    const auto current = getProjectPath();
     if (current != lastPath) collapsed.clear();
     lastPath = current;
     snapshot = {};

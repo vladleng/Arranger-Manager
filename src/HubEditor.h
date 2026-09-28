@@ -1,15 +1,16 @@
 #pragma once
 #include <JuceHeader.h>
-#include "HubProcessor.h"
 #include "SongSnapshot.h"
 #include "ArrangementTag.h"
+#include <functional>
 #include <set>
 #include <vector>
 
-class HubEditor final : public juce::AudioProcessorEditor, private juce::Timer, private juce::ListBoxModel
+class HubEditor final : public juce::Component, private juce::Timer, private juce::ListBoxModel
 {
 public:
-    explicit HubEditor(HubProcessor&);
+    HubEditor(std::function<juce::String()> getProjectPath,
+        std::function<void(juce::String)> setProjectPath);
     ~HubEditor() override;
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -37,7 +38,8 @@ private:
     void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
     void listBoxItemClicked(int, const juce::MouseEvent&) override;
 
-    HubProcessor& processor;
+    std::function<juce::String()> getProjectPath;
+    std::function<void(juce::String)> setProjectPath;
     juce::Label heading, path, summary, info, notes, help;
     juce::TextButton choose { "Open .song" }, refresh { "Refresh" };
     juce::ListBox list { "Project events", this };
