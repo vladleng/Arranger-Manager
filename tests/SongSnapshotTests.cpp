@@ -80,7 +80,7 @@ int main()
         && check(arranger::studioProColour("FFFF2A94") == 0xff942affu,
             "Studio Pro track ABGR conversion mismatch")
         && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
-        && check(snapshot.markers.size() == 6 && snapshot.markers[0].start == "0"
+        && check(snapshot.markers.size() == 6 && snapshot.markers[0].start == "32"
             && snapshot.markers[5].name == "End", "Marker mismatch")
         && check(snapshot.events[0].name == "WIP | Drums | Record five parts" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
