@@ -1,6 +1,6 @@
 # Arranger Manager — передача контекста
 
-**Срез на 2026-09-29:** база 0.1 fix4 принята; запись `.song` отложена, PR #28 закрыт без слияния. 0.1b проверена пользователем; fix1 с локальными Notes и правками UI находится в PR #30 поверх неё. Дополнение 0.1c (#31) находится в PR #32 поверх PR #30. Дополнение 0.1d (#33) находится в ветке `hybrid-0-1d-folders-menu-song-notes` поверх PR #32. Начните с [README](../README.md), затем с этого файла. [CONCEPT](CONCEPT.md) фиксирует действующие решения, [ROADMAP](ROADMAP.md) — следующие этапы. Документы версий `HUB-0.0*.md` и ARA относятся к истории; изменения кода и состояние Issues/PR нужно проверить в GitHub перед началом новой работы.
+**Срез на 2026-09-29:** база 0.1 fix4 принята; запись `.song` отложена, PR #28 закрыт без слияния. Пользователь подтвердил работу 0.1b, fix1, 0.1c и 0.1d; issues #29, #31, #33 закрыты. Fix1 находится в PR #30, 0.1c — в PR #32 поверх него, 0.1d — в PR #34 поверх PR #32. Начните с [README](../README.md), затем с этого файла. [CONCEPT](CONCEPT.md) фиксирует действующие решения, [ROADMAP](ROADMAP.md) — следующие этапы. Документы версий `HUB-0.0*.md` и ARA относятся к истории; изменения кода и состояние Issues/PR нужно проверить в GitHub перед началом новой работы.
 
 ## Что пользователь хочет получить
 
@@ -55,7 +55,7 @@ cmake --build build --config Release --target ArrangerManagerDesktop ArrangerMan
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует `.exe` и `docs/HYBRID-0.1d.md` под именем 0.1d. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. Fix4 и база 0.1b проверены пользователем; fix1, 0.1c и 0.1d требуют проверки интерфейса в Windows.
+CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует `.exe` и `docs/HYBRID-0.1d.md` под именем 0.1d. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. Windows Build #50 и пользовательская проверка 0.1d пройдены; предыдущие 0.1b и fix1/0.1c также подтверждены пользователем.
 
 ## GitHub и следующие действия
 

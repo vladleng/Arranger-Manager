@@ -26,7 +26,7 @@ cmake --build build --config Release --target ArrangerManagerDesktop ArrangerMan
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CI создаёт архив `Arranger-Manager-0.1d-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b проверена пользователем; 0.1b fix1, 0.1c и 0.1d требуют проверки интерфейса в Windows.
+CI создаёт архив `Arranger-Manager-0.1d-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b, fix1, 0.1c и 0.1d проверены пользователем. Windows Build #50 для 0.1d прошёл.
 
 ## Как читать документы
 
