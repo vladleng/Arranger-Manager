@@ -3,11 +3,31 @@
 #include <juce_core/juce_core.h>
 #include "ArrangementTag.h"
 #include "SongNoteKeys.h"
+#include <algorithm>
 #include <utility>
 #include <vector>
 
 namespace arranger
 {
+enum class SongType { unspecified, beginning, rough, mixing, finalMix };
+inline const char* songTypeKey(SongType type)
+{
+    switch (type)
+    {
+        case SongType::beginning: return "beginning";
+        case SongType::rough: return "rough";
+        case SongType::mixing: return "mixing";
+        case SongType::finalMix: return "finalMix";
+        default: return "";
+    }
+}
+inline SongType parseSongType(const juce::String& key)
+{
+    for (auto type : {SongType::beginning, SongType::rough, SongType::mixing, SongType::finalMix})
+        if (key == songTypeKey(type)) return type;
+    return SongType::unspecified;
+}
+
 struct CatalogFolder { juce::String id, name; };
 struct CatalogNote { juce::String key, text; };
 struct CatalogCheckpoint { juce::String id, name; Status status = Status::todo; };
@@ -31,6 +51,7 @@ struct CatalogSong
     Status status = Status::unmarked;
     std::vector<CatalogTask> tasks;
     std::vector<CatalogNote> localNotes;
+    SongType type = SongType::unspecified;
 };
 
 class SongCatalog
@@ -65,6 +86,43 @@ public:
     {
         for (auto& song : songs)
             if (song.path.equalsIgnoreCase(path)) { song.status = status; return true; }
+        return false;
+    }
+
+    bool setSongType(const juce::String& path, SongType type)
+    {
+        if (auto* song = findSong(path)) { song->type = type; return true; }
+        return false;
+    }
+
+    template <typename Item>
+    static bool reorder(std::vector<Item>& items, const juce::String& sourceId,
+        const juce::String& targetId, bool after)
+    {
+        auto source = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.id == sourceId; });
+        auto target = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.id == targetId; });
+        if (source == items.end() || target == items.end() || source == target) return false;
+        const auto from = static_cast<size_t>(source - items.begin());
+        auto to = static_cast<size_t>(target - items.begin()) + (after ? 1u : 0u);
+        if (to > from) --to;
+        if (to == from) return false;
+        auto moved = std::move(items[from]);
+        items.erase(items.begin() + static_cast<std::ptrdiff_t>(from));
+        items.insert(items.begin() + static_cast<std::ptrdiff_t>(to), std::move(moved));
+        return true;
+    }
+
+    bool moveTask(const juce::String& path, const juce::String& id,
+        const juce::String& targetId, bool after)
+    {
+        if (auto* song = findSong(path)) return reorder(song->tasks, id, targetId, after);
+        return false;
+    }
+
+    bool moveCheckpoint(const juce::String& path, const juce::String& taskId,
+        const juce::String& id, const juce::String& targetId, bool after)
+    {
+        if (auto* task = findTask(path, taskId)) return reorder(task->checkpoints, id, targetId, after);
         return false;
     }
 
@@ -261,6 +319,7 @@ public:
             item->setProperty("path", song.path);
             item->setProperty("folderId", song.folderId);
             item->setProperty("status", label(song.status));
+            item->setProperty("songType", songTypeKey(song.type));
             juce::Array<juce::var> taskArray;
             for (const auto& task : song.tasks)
             {
@@ -323,6 +382,7 @@ public:
                 if (catalog.addSong(path, folderId))
                 {
                     catalog.setSongStatus(path, parseStatus(item.getProperty("status", {}).toString().toStdString()));
+                    catalog.setSongType(path, parseSongType(item.getProperty("songType", {}).toString()));
                     const auto notesList = item.getProperty("localNotes", {});
                     if (const auto* entries = notesList.getArray())
                         for (const auto& entry : *entries)

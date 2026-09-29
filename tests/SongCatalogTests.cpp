@@ -37,7 +37,9 @@ int main()
     const auto oldCatalog = arranger::SongCatalog::fromJson(
         R"({"version":1,"folders":[],"songs":[{"path":"C:\\Songs\\Legacy.song","folderId":""}]})");
     if (!check(oldCatalog.songs.size() == 1 && oldCatalog.songStatus(oldCatalog.songs[0].path)
-        == arranger::Status::unmarked, "Existing 0.0m catalog did not load")) return 1;
+        == arranger::Status::unmarked, "Existing 0.0m catalog did not load")
+        || !check(oldCatalog.songs[0].type == arranger::SongType::unspecified,
+            "Legacy song unexpectedly gained a type")) return 1;
     const auto previousCatalog = arranger::SongCatalog::fromJson(
         R"({"version":1,"folders":[],"songs":[{"path":"C:\\Songs\\Legacy.song","folderId":"","status":"WAIT"}],"trackStatuses":[{"path":"C:\\Songs\\Legacy.song","trackId":"old-track","status":"WIP"}]})");
     if (!check(previousCatalog.songs.size() == 1 && previousCatalog.songStatus(previousCatalog.songs[0].path)
@@ -52,14 +54,30 @@ int main()
         || !check(catalog.setCheckpointStatus("C:\\Songs\\First.song", first, verse, arranger::Status::done), "Checkpoint status failed")
         || !check(catalog.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 2}, "Task progress failed")) return 1;
 
+    const auto third = catalog.addTask("C:\\Songs\\First.song", "Instrumentation");
+    const auto bridge = catalog.addCheckpoint("C:\\Songs\\First.song", first, "Bridge");
+    const auto otherCheckpoint = catalog.addCheckpoint("C:\\Songs\\First.song", second, "Unrelated");
+    if (!check(catalog.moveTask("C:\\Songs\\First.song", third, first, false), "Move task to top failed")
+        || !check(catalog.findSong("C:\\Songs\\First.song")->tasks[0].id == third, "Task order not updated")
+        || !check(catalog.moveTask("C:\\Songs\\First.song", third, second, true), "Move task to bottom failed")
+        || !check(catalog.findSong("C:\\Songs\\First.song")->tasks[2].id == third, "Task moved to wrong position")
+        || !check(!catalog.moveTask("C:\\Songs\\First.song", first, second, false), "No-op task move changed order")
+        || !check(!catalog.moveTask("C:\\Songs\\Second.song", first, second, true), "Cross-song task move accepted")
+        || !check(catalog.moveCheckpoint("C:\\Songs\\First.song", first, bridge, verse, false), "Checkpoint move failed")
+        || !check(catalog.findTask("C:\\Songs\\First.song", first)->checkpoints[0].id == bridge,
+            "Checkpoint order not updated")
+        || !check(!catalog.moveCheckpoint("C:\\Songs\\First.song", first, bridge, otherCheckpoint, true),
+            "Cross-task checkpoint move accepted")
+        || !check(catalog.setSongType("C:\\Songs\\First.song", arranger::SongType::rough), "Song type failed")) return 1;
+
     arranger::SongSnapshot snapshot;
     arranger::SongTrack doneTrack; doneTrack.name = "DONE | Drums";
     arranger::SongTrack workTrack; workTrack.name = "WIP | Bass";
     snapshot.tracks = {doneTrack, workTrack};
-    if (!check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{1, 4},
+    if (!check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{1, 5},
             "Song progress must count top-level tasks and managed tracks only")
         || !check(catalog.setTaskStatus("C:\\Songs\\First.song", first, arranger::Status::done), "Task status failed")
-        || !check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{2, 4},
+        || !check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{2, 5},
             "Only task DONE may raise song progress")) return 1;
 
     const auto songPath = juce::String("C:\\Songs\\First.song");
@@ -86,8 +104,13 @@ int main()
         || !check(catalog.localNote(songPath, trackKey).isEmpty(), "Cleared note remained")) return 1;
     auto tasksRestored = arranger::SongCatalog::fromJson(catalog.toJson());
     if (!check(tasksRestored.findTask("C:\\Songs\\First.song", first) != nullptr, "Task round-trip failed")
-        || !check(tasksRestored.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 2},
+        || !check(tasksRestored.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 3},
             "Checkpoint round-trip failed")
+        || !check(tasksRestored.findSong(songPath)->type == arranger::SongType::rough,
+            "Song type round-trip failed")
+        || !check(tasksRestored.findSong(songPath)->tasks[2].id == third
+            && tasksRestored.findTask(songPath, first)->checkpoints[0].id == bridge,
+            "Dragged order lost on restart")
         || !check(tasksRestored.findSong("C:\\Songs\\Second.song")->tasks.empty(), "Tasks leaked to another song")
         || !check(tasksRestored.localNote(songPath, clipKey) == "Local clip note", "Clip note round-trip failed")
         || !check(tasksRestored.localNote(songPath, taskKey) == "Task idea", "Task note round-trip failed")

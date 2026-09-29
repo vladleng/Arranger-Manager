@@ -29,7 +29,7 @@ class HubApplication final : public juce::JUCEApplication
 {
 public:
     const juce::String getApplicationName() override { return "Arranger Manager"; }
-    const juce::String getApplicationVersion() override { return "0.1b fix1"; }
+    const juce::String getApplicationVersion() override { return "0.1c"; }
     bool moreThanOneInstanceAllowed() override { return false; }
 
     void initialise(const juce::String&) override

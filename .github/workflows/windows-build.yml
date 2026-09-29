@@ -19,10 +19,10 @@ jobs:
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1b fix1" | Out-Null
-          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1b fix1"
-          Copy-Item -Force "docs/HYBRID-0.1b-fix1.md" "package/Arranger Manager 0.1b fix1"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1c" | Out-Null
+          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1c"
+          Copy-Item -Force "docs/HYBRID-0.1c.md" "package/Arranger Manager 0.1c"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-0.1b-fix1-Windows-App
+          name: Arranger-Manager-0.1c-Windows-App
           path: package

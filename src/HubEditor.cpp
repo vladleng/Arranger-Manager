@@ -111,6 +111,60 @@ void taskIcon(juce::Graphics& g, int x, int height, bool checkpoint)
     }
 }
 
+void songTypeIcon(juce::Graphics& g, int x, int height, arranger::SongType type)
+{
+    const float left = static_cast<float>(x + 8);
+    const float top = (static_cast<float>(height) - 18.0f) * 0.5f;
+    switch (type)
+    {
+        case arranger::SongType::beginning:
+            g.setColour(juce::Colour(0xffe15a5c));
+            g.fillEllipse(left, top, 18.0f, 18.0f);
+            break;
+        case arranger::SongType::rough:
+        {
+            g.setColour(juce::Colour(0xfff1c84b));
+            g.fillEllipse(left + 3.0f, top + 4.5f, 12.0f, 9.0f);
+            juce::Path tail;
+            tail.addTriangle(left + 3.0f, top + 9.0f, left - 1.0f, top + 4.0f,
+                left - 1.0f, top + 14.0f);
+            g.fillPath(tail);
+            g.setColour(juce::Colour(0xff29333d));
+            g.fillEllipse(left + 12.0f, top + 7.5f, 1.8f, 1.8f);
+            break;
+        }
+        case arranger::SongType::mixing:
+        {
+            g.setColour(juce::Colour(0xff438ce5));
+            g.fillRoundedRectangle(left, top, 18.0f, 18.0f, 3.0f);
+            g.setColour(juce::Colours::white);
+            for (int i = 0; i < 3; ++i)
+            {
+                const float lineX = left + 4.5f + static_cast<float>(i) * 4.5f;
+                g.fillRect(lineX, top + 3.0f, 1.0f, 12.0f);
+                g.fillRoundedRectangle(lineX - 1.3f, top + 5.0f + static_cast<float>((i * 4) % 7),
+                    3.6f, 2.5f, 1.0f);
+            }
+            break;
+        }
+        case arranger::SongType::finalMix:
+        {
+            g.setColour(juce::Colour(0xff34a878));
+            g.fillEllipse(left, top, 18.0f, 18.0f);
+            juce::Path play;
+            play.addTriangle(left + 7.0f, top + 4.5f, left + 7.0f, top + 13.5f,
+                left + 13.0f, top + 9.0f);
+            g.setColour(juce::Colours::white);
+            g.fillPath(play);
+            break;
+        }
+        default:
+            g.setColour(juce::Colour(0xff8795a3));
+            g.drawEllipse(left + 1.0f, top + 1.0f, 16.0f, 16.0f, 1.3f);
+            break;
+    }
+}
+
 juce::Colour savedColour(const juce::String& saved)
 {
     if (const auto argb = arranger::studioProColour(saved.toStdString()))
@@ -159,7 +213,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1b fix1", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1c", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -168,7 +222,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
         label->setColour(juce::Label::textColourId, juce::Colour(0xffdce4eb));
         addAndMakeVisible(*label);
     }
-    help.setText(catalog != nullptr ? "Right-click song/task for items. Click Status or Notes to edit local data."
+    help.setText(catalog != nullptr ? "Click Notes/Type to edit; double-click task name; drag tasks to reorder."
         : "Saved project snapshot - Save in Studio Pro to update", juce::dontSendNotification);
     help.setColour(juce::Label::textColourId, juce::Colour(0xffaebdca));
     path.setText("No project selected", juce::dontSendNotification);
@@ -212,6 +266,14 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     list.setRowHeight(36);
     list.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff222b33));
     addAndMakeVisible(list);
+    inlineEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff354554));
+    inlineEditor.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+    inlineEditor.onFocusLost = [this] { finishInlineEdit(true); };
+    inlineEditor.onEscapeKey = [this] { finishInlineEdit(false); };
+    inlineEditor.onReturnKey = [this]
+    {
+        if (editKind == EditKind::name) finishInlineEdit(true);
+    };
     setSize(980, 620);
     timerCallback();
     startTimerHz(1);
@@ -270,6 +332,7 @@ void HubEditor::resized()
     help.setBounds(area.removeFromTop(23));
     area.removeFromTop(32);
     list.setBounds(area);
+    positionInlineEditor();
     repaint();
 }
 
@@ -306,6 +369,7 @@ void HubEditor::timerCallback()
 
 void HubEditor::refreshSnapshot()
 {
+    finishInlineEdit(true);
     if (catalog != nullptr) { refreshCatalog(); return; }
     const auto current = getProjectPath();
     if (current != lastPath) collapsed.clear();
@@ -356,6 +420,7 @@ void HubEditor::refreshSnapshot()
 
 void HubEditor::refreshCatalog()
 {
+    finishInlineEdit(true);
     lastPath = getProjectPath();
     auto targetName = juce::String("Songs");
     for (const auto& folder : catalog->folders)
@@ -484,6 +549,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
     project.total = projectTotal;
     project.songPath = songPath;
     if (catalogProject) project.manualStatus = catalog->songStatus(songPath);
+    if (catalogSong != nullptr) project.songType = catalogSong->type;
     rows.push_back(std::move(project));
     if (!expanded) return;
 
@@ -504,7 +570,8 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             if (open)
                 for (const auto& checkpoint : task.checkpoints)
                 {
-                    Row child {RowKind::checkpoint, checkpoint.name, {}, {}, {}, {}, {}, depth + 2};
+                    Row child {RowKind::checkpoint, checkpoint.name, {}, {}, {}, {},
+                        taskKey + ":checkpoint:" + checkpoint.id.toStdString(), depth + 2};
                     child.songPath = songPath;
                     child.taskId = task.id;
                     child.checkpointId = checkpoint.id;
@@ -668,6 +735,26 @@ void HubEditor::showStatusMenu(const juce::String& songPath)
         });
 }
 
+void HubEditor::showSongTypeMenu(const Row& row)
+{
+    if (catalog == nullptr || row.kind != RowKind::project) return;
+    juce::PopupMenu menu;
+    const arranger::SongType types[] {arranger::SongType::unspecified, arranger::SongType::beginning,
+        arranger::SongType::rough, arranger::SongType::mixing, arranger::SongType::finalMix};
+    const char* names[] {"Clear type", "Beginning", "Rough sketch", "Mixing", "Final mix"};
+    for (int i = 0; i < 5; ++i)
+        menu.addItem(i + 1, names[i], true, row.songType == types[i]);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+        [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
+        {
+            if (safe == nullptr || result < 1 || result > 5) return;
+            const arranger::SongType options[] {arranger::SongType::unspecified,
+                arranger::SongType::beginning, arranger::SongType::rough,
+                arranger::SongType::mixing, arranger::SongType::finalMix};
+            if (safe->catalog->setSongType(row.songPath, options[result - 1])) safe->catalogChanged();
+        });
+}
+
 void HubEditor::promptLocalName(const juce::String& songPath, const juce::String& taskId,
     const juce::String& checkpointId, bool rename)
 {
@@ -805,10 +892,170 @@ void HubEditor::promptLocalNote(const Row& row)
         }), true);
 }
 
+void HubEditor::beginInlineEdit(int index, EditKind kind)
+{
+    if (catalog == nullptr || index < 0 || index >= static_cast<int>(rows.size())) return;
+    finishInlineEdit(true);
+    const auto& row = rows[static_cast<size_t>(index)];
+    if (kind == EditKind::note && row.noteKey.isEmpty()) return;
+    if (kind == EditKind::name && row.kind != RowKind::task && row.kind != RowKind::checkpoint) return;
+    auto* content = list.getViewport() != nullptr ? list.getViewport()->getViewedComponent() : nullptr;
+    if (content == nullptr) return;
+    editRow = row;
+    editIndex = index;
+    editKind = kind;
+    inlineEditor.setMultiLine(kind == EditKind::note);
+    inlineEditor.setReturnKeyStartsNewLine(kind == EditKind::note);
+    inlineEditor.setText(kind == EditKind::note ? row.notes : row.title, false);
+    content->addAndMakeVisible(inlineEditor);
+    positionInlineEditor();
+    inlineEditor.toFront(false);
+    inlineEditor.grabKeyboardFocus();
+    if (kind == EditKind::name) inlineEditor.selectAll();
+    else inlineEditor.moveCaretToEnd();
+}
+
+void HubEditor::finishInlineEdit(bool save)
+{
+    if (editKind == EditKind::none) return;
+    const auto kind = editKind;
+    const auto row = editRow;
+    const auto value = inlineEditor.getText();
+    editKind = EditKind::none;
+    editIndex = -1;
+    inlineEditor.setVisible(false);
+    if (!save || catalog == nullptr) return;
+    bool changed = false;
+    if (kind == EditKind::note && value.trim() != row.notes.trim())
+        changed = catalog->setLocalNote(row.songPath, row.noteKey, value);
+    else if (kind == EditKind::name && value.trim().isNotEmpty() && value.trim() != row.title)
+        changed = row.kind == RowKind::task
+            ? catalog->editTask(row.songPath, row.taskId, value)
+            : catalog->editCheckpoint(row.songPath, row.taskId, row.checkpointId, value);
+    if (changed) catalogChanged();
+}
+
+void HubEditor::positionInlineEditor()
+{
+    if (editKind == EditKind::none) return;
+    const auto layout = columnsFor(list.getWidth());
+    int x = layout.notes;
+    int width = layout.notesWidth - 3;
+    if (editKind == EditKind::name)
+    {
+        const auto& row = editRow;
+        x = 10 + row.depth * 19 + 18 + 19;
+        width = layout.nameWidth - x;
+    }
+    inlineEditor.setBounds(x, editIndex * list.getRowHeight() + 2, std::max(30, width),
+        list.getRowHeight() - 4);
+    inlineEditor.toFront(false);
+}
+
+void HubEditor::listWasScrolled()
+{
+    positionInlineEditor();
+}
+
+juce::var HubEditor::getDragSourceDescription(const juce::SparseSet<int>& selected)
+{
+    if (catalog == nullptr || selected.size() != 1) return {};
+    const auto index = selected[0];
+    if (index < 0 || index >= static_cast<int>(rows.size())) return {};
+    const auto& row = rows[static_cast<size_t>(index)];
+    return row.kind == RowKind::task || row.kind == RowKind::checkpoint
+        ? juce::var(juce::String(row.key)) : juce::var();
+}
+
+bool HubEditor::dropTarget(const juce::String& sourceKey, int x, int y,
+    int& targetIndex, bool& after) const
+{
+    const auto source = std::find_if(rows.begin(), rows.end(), [&](const Row& row)
+    { return row.key == sourceKey.toStdString(); });
+    targetIndex = list.getRowContainingPosition(x, y);
+    if (source == rows.end() || targetIndex < 0 || targetIndex >= static_cast<int>(rows.size())) return false;
+    const auto& target = rows[static_cast<size_t>(targetIndex)];
+    if ((source->kind != RowKind::task && source->kind != RowKind::checkpoint)
+        || target.kind != source->kind || target.key == source->key
+        || !target.songPath.equalsIgnoreCase(source->songPath)
+        || (source->kind == RowKind::checkpoint && target.taskId != source->taskId)) return false;
+    after = y >= list.getRowPosition(targetIndex, true).getCentreY();
+    return true;
+}
+
+void HubEditor::reorderDrop(const juce::String& sourceKey, int index, bool after)
+{
+    if (catalog == nullptr || index < 0 || index >= static_cast<int>(rows.size())) return;
+    const auto source = std::find_if(rows.begin(), rows.end(), [&](const Row& row)
+    { return row.key == sourceKey.toStdString(); });
+    if (source == rows.end()) return;
+    const auto& target = rows[static_cast<size_t>(index)];
+    const bool changed = source->kind == RowKind::task
+        ? catalog->moveTask(source->songPath, source->taskId, target.taskId, after)
+        : catalog->moveCheckpoint(source->songPath, source->taskId,
+            source->checkpointId, target.checkpointId, after);
+    if (changed) catalogChanged();
+}
+
+bool HubEditor::TaskList::isInterestedInDragSource(const SourceDetails& details)
+{
+    return details.sourceComponent.get() == this
+        && details.description.isString();
+}
+
+void HubEditor::TaskList::itemDragMove(const SourceDetails& details)
+{
+    int index = -1;
+    bool below = false;
+    if (!owner.dropTarget(details.description.toString(), details.localPosition.x,
+        details.localPosition.y, index, below)) index = -1;
+    if (dropRow != index || after != below)
+    {
+        dropRow = index;
+        after = below;
+        repaint();
+    }
+}
+
+void HubEditor::TaskList::itemDragExit(const SourceDetails&)
+{
+    dropRow = -1;
+    repaint();
+}
+
+void HubEditor::TaskList::itemDropped(const SourceDetails& details)
+{
+    int index = -1;
+    bool below = false;
+    const bool valid = owner.dropTarget(details.description.toString(), details.localPosition.x,
+        details.localPosition.y, index, below);
+    dropRow = -1;
+    repaint();
+    if (valid) owner.reorderDrop(details.description.toString(), index, below);
+}
+
+void HubEditor::TaskList::paintOverChildren(juce::Graphics& g)
+{
+    if (dropRow < 0) return;
+    const auto bounds = getRowPosition(dropRow, true);
+    g.setColour(juce::Colour(0xff62b5f5));
+    g.fillRect(0, (after ? bounds.getBottom() : bounds.getY()) - 2, getWidth(), 3);
+}
+
 void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
     if (index < 0 || index >= static_cast<int>(rows.size())) return;
+    if (editKind != EditKind::none) finishInlineEdit(true);
     const auto& row = rows[static_cast<size_t>(index)];
+    if (catalog != nullptr && row.kind == RowKind::project && !event.mods.isPopupMenu())
+    {
+        const auto layout = columnsFor(list.getWidth());
+        if (event.x >= layout.type && event.x < layout.parts)
+        {
+            showSongTypeMenu(row);
+            return;
+        }
+    }
     if (catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::task
         || row.kind == RowKind::checkpoint) && !event.mods.isPopupMenu())
     {
@@ -825,7 +1072,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
         const auto layout = columnsFor(list.getWidth());
         if (event.x >= layout.notes)
         {
-            promptLocalNote(row);
+            beginInlineEdit(index, EditKind::note);
             return;
         }
     }
@@ -866,6 +1113,8 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
         }
     }
     if (!row.expandable) return;
+    if (catalog != nullptr && row.kind == RowKind::task
+        && event.x >= 10 + row.depth * 19 + 18) return;
     if (catalog != nullptr && row.kind == RowKind::track)
     {
         if (!expandedChildren.erase(key)) expandedChildren.insert(key);
@@ -878,6 +1127,17 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
     rebuildRows();
     list.updateContent();
     list.repaint();
+}
+
+void HubEditor::listBoxItemDoubleClicked(int index, const juce::MouseEvent& event)
+{
+    if (catalog == nullptr || event.mods.isPopupMenu() || index < 0
+        || index >= static_cast<int>(rows.size())) return;
+    const auto& row = rows[static_cast<size_t>(index)];
+    if ((row.kind == RowKind::task || row.kind == RowKind::checkpoint)
+        && event.x >= 10 + row.depth * 19 + 18
+        && event.x < columnsFor(list.getWidth()).type)
+        beginInlineEdit(index, EditKind::name);
 }
 
 void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int height, bool selected)
@@ -932,7 +1192,9 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     g.drawFittedText(title, juce::Rectangle<int> {titleX, 0, std::max(1, layout.nameWidth - titleX), height},
         juce::Justification::centredLeft, 1);
 
-    if (row.kind == RowKind::clip)
+    if (row.kind == RowKind::project && catalog != nullptr)
+        songTypeIcon(g, layout.type, height, row.songType);
+    else if (row.kind == RowKind::clip)
     {
         mediaIcon(g, layout.type, height, row.midi);
         const int visible = std::min(static_cast<int>(row.sections.size()),
