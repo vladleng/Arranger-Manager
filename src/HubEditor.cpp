@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <numeric>
+#include <tuple>
 #include <utility>
 
 namespace
@@ -136,7 +137,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1 fix4", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1b", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -145,7 +146,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
         label->setColour(juce::Label::textColourId, juce::Colour(0xffdce4eb));
         addAndMakeVisible(*label);
     }
-    help.setText(catalog != nullptr ? "Click song Status to set it. Track Status comes from Studio Pro track names."
+    help.setText(catalog != nullptr ? "Right-click song to add task; right-click task for checkpoints. Click local Status to edit."
         : "Saved project snapshot - Save in Studio Pro to update", juce::dontSendNotification);
     help.setColour(juce::Label::textColourId, juce::Colour(0xffaebdca));
     path.setText("No project selected", juce::dontSendNotification);
@@ -337,7 +338,7 @@ void HubEditor::refreshCatalog()
     auto targetName = juce::String("Songs");
     for (const auto& folder : catalog->folders)
         if (folder.id == selectedFolderId) { targetName = folder.name; break; }
-    help.setText("Add .song to: " + targetName + "  |  Song Status: click  |  Track Status: Studio Pro names",
+    help.setText("Add .song to: " + targetName + "  |  Right-click song/task for tasks and checkpoints",
         juce::dontSendNotification);
     std::set<std::string> paths;
     for (const auto& song : catalog->songs)
@@ -454,13 +455,40 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         song.ok() ? juce::String(arranger::managedTrackCount(song)) + " tracks / "
             + juce::String(managedClips) + " clips" : song.error,
         {}, {}, {}, projectKey, depth, song.ok(), expanded};
-    const auto [projectDone, projectTotal] = arranger::songProgress(song);
+    const auto* catalogSong = catalogProject ? catalog->findSong(songPath) : nullptr;
+    if (catalogSong != nullptr && !catalogSong->tasks.empty()) project.expandable = true;
+    const auto [projectDone, projectTotal] = arranger::songProgress(song, catalogSong);
     project.done = projectDone;
     project.total = projectTotal;
     project.songPath = songPath;
     if (catalogProject) project.manualStatus = catalog->songStatus(songPath);
     rows.push_back(std::move(project));
-    if (!song.ok() || !expanded) return;
+    if (!expanded) return;
+
+    if (catalogSong != nullptr)
+        for (const auto& task : catalogSong->tasks)
+        {
+            const auto taskKey = projectKey + ":task:" + task.id.toStdString();
+            const bool open = !collapsed.contains(taskKey);
+            Row item {RowKind::task, task.name, {}, {}, {}, {}, taskKey,
+                depth + 1, !task.checkpoints.empty(), open};
+            item.songPath = songPath;
+            item.taskId = task.id;
+            item.manualStatus = task.status;
+            std::tie(item.done, item.total) = task.progress();
+            rows.push_back(std::move(item));
+            if (open)
+                for (const auto& checkpoint : task.checkpoints)
+                {
+                    Row child {RowKind::checkpoint, checkpoint.name, {}, {}, {}, {}, {}, depth + 2};
+                    child.songPath = songPath;
+                    child.taskId = task.id;
+                    child.checkpointId = checkpoint.id;
+                    child.manualStatus = checkpoint.status;
+                    rows.push_back(std::move(child));
+                }
+        }
+    if (!song.ok()) return;
 
     auto addClip = [this, &song, &songPath](const arranger::SongEvent& event, int clipDepth)
     {
@@ -531,6 +559,8 @@ void HubEditor::promptNewFolder()
 void HubEditor::showSongMenu(const juce::String& songPath)
 {
     juce::PopupMenu menu;
+    menu.addItem(2000, "New task...");
+    menu.addSeparator();
     menu.addItem(1, "Move to Songs (root)");
     for (size_t i = 0; i < catalog->folders.size(); ++i)
         menu.addItem(static_cast<int>(i) + 10, "Move to " + catalog->folders[i].name);
@@ -540,6 +570,7 @@ void HubEditor::showSongMenu(const juce::String& songPath)
         [safe = juce::Component::SafePointer<HubEditor>(this), songPath](int result)
         {
             if (safe == nullptr || result == 0) return;
+            if (result == 2000) { safe->promptLocalName(songPath, {}); return; }
             if (result == 1000)
             {
                 safe->catalog->removeSong(songPath);
@@ -598,16 +629,119 @@ void HubEditor::showStatusMenu(const juce::String& songPath)
         });
 }
 
+void HubEditor::promptLocalName(const juce::String& songPath, const juce::String& taskId,
+    const juce::String& checkpointId, bool rename)
+{
+    const bool checkpoint = taskId.isNotEmpty() && (!rename || checkpointId.isNotEmpty());
+    juce::String current;
+    if (rename)
+    {
+        const auto* task = catalog->findTask(songPath, taskId);
+        if (task == nullptr) return;
+        if (!checkpoint) current = task->name;
+        else
+            for (const auto& cp : task->checkpoints)
+                if (cp.id == checkpointId) current = cp.name;
+        if (current.isEmpty()) return;
+    }
+    auto* dialog = new juce::AlertWindow(rename ? "Rename" : "New item",
+        checkpoint ? "Checkpoint name" : "Task name", juce::MessageBoxIconType::QuestionIcon);
+    dialog->addTextEditor("name", current, checkpoint ? "Checkpoint" : "Task");
+    dialog->addButton(rename ? "Save" : "Create", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+        [safe = juce::Component::SafePointer<HubEditor>(this), dialog,
+            songPath, taskId, checkpointId, checkpoint, rename](int result)
+        {
+            if (safe == nullptr || result != 1) return;
+            const auto name = dialog->getTextEditorContents("name");
+            bool changed = false;
+            if (rename)
+                changed = checkpoint
+                    ? safe->catalog->editCheckpoint(songPath, taskId, checkpointId, name)
+                    : safe->catalog->editTask(songPath, taskId, name);
+            else if (checkpoint)
+                changed = safe->catalog->addCheckpoint(songPath, taskId, name).isNotEmpty();
+            else
+                changed = safe->catalog->addTask(songPath, name).isNotEmpty();
+            if (changed)
+            {
+                safe->expandedSongs.insert("project:" + songPath.toStdString());
+                safe->catalogChanged();
+            }
+        }), true);
+}
+
+void HubEditor::showLocalStatusMenu(const Row& row)
+{
+    juce::PopupMenu menu;
+    const arranger::Status options[] {arranger::Status::pool, arranger::Status::todo,
+        arranger::Status::wip, arranger::Status::draft, arranger::Status::wait,
+        arranger::Status::done, arranger::Status::blocked};
+    for (int i = 0; i < static_cast<int>(std::size(options)); ++i)
+        menu.addItem(i + 1, arranger::label(options[i]), true, options[i] == row.manualStatus);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+        [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
+        {
+            if (safe == nullptr || result < 1 || result > 7) return;
+            const arranger::Status statuses[] {arranger::Status::pool, arranger::Status::todo,
+                arranger::Status::wip, arranger::Status::draft, arranger::Status::wait,
+                arranger::Status::done, arranger::Status::blocked};
+            const auto status = statuses[result - 1];
+            const bool changed = row.kind == RowKind::task
+                ? safe->catalog->setTaskStatus(row.songPath, row.taskId, status)
+                : safe->catalog->setCheckpointStatus(row.songPath, row.taskId, row.checkpointId, status);
+            if (changed) safe->catalogChanged();
+        });
+}
+
+void HubEditor::showTaskMenu(const Row& row)
+{
+    juce::PopupMenu menu;
+    if (row.kind == RowKind::task) menu.addItem(1, "New checkpoint...");
+    menu.addItem(2, "Rename...");
+    menu.addSeparator();
+    menu.addItem(3, row.kind == RowKind::task ? "Delete task..." : "Delete checkpoint...");
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+        [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
+        {
+            if (safe == nullptr || result == 0) return;
+            if (result == 1) { safe->promptLocalName(row.songPath, row.taskId); return; }
+            if (result == 2)
+            {
+                safe->promptLocalName(row.songPath, row.taskId, row.checkpointId, true);
+                return;
+            }
+            if (result != 3) return;
+            auto* dialog = new juce::AlertWindow("Delete local item",
+                row.kind == RowKind::task ? "Delete task and all its checkpoints?"
+                    : "Delete checkpoint?", juce::MessageBoxIconType::WarningIcon);
+            dialog->addButton("Delete", 1);
+            dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+            dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+                [safe, row](int answer)
+                {
+                    if (safe == nullptr || answer != 1) return;
+                    const bool changed = row.kind == RowKind::task
+                        ? safe->catalog->removeTask(row.songPath, row.taskId)
+                        : safe->catalog->removeCheckpoint(row.songPath, row.taskId, row.checkpointId);
+                    if (changed) safe->catalogChanged();
+                }), true);
+        });
+}
+
 void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
     if (index < 0 || index >= static_cast<int>(rows.size())) return;
     const auto& row = rows[static_cast<size_t>(index)];
-    if (catalog != nullptr && row.kind == RowKind::project && !event.mods.isPopupMenu())
+    if (catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::task
+        || row.kind == RowKind::checkpoint) && !event.mods.isPopupMenu())
     {
         const auto layout = columnsFor(list.getWidth());
         if (event.x >= layout.status && event.x < layout.status + layout.statusWidth)
         {
-            showStatusMenu(row.songPath);
+            if (row.kind == RowKind::project) showStatusMenu(row.songPath);
+            else showLocalStatusMenu(row);
             return;
         }
     }
@@ -615,6 +749,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
     {
         if (row.kind == RowKind::project) showSongMenu(row.songPath);
         else if (row.kind == RowKind::folder) showFolderMenu(row.folderId);
+        else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint) showTaskMenu(row);
         return;
     }
     const auto key = row.key;
@@ -626,7 +761,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
             auto targetName = juce::String("Songs");
             for (const auto& folder : catalog->folders)
                 if (folder.id == selectedFolderId) { targetName = folder.name; break; }
-            help.setText("Add .song to: " + targetName + "  |  Song Status: click  |  Track Status: Studio Pro names",
+            help.setText("Add .song to: " + targetName + "  |  Right-click song/task for tasks and checkpoints",
                 juce::dontSendNotification);
         }
         if (row.kind == RowKind::project)
@@ -743,7 +878,16 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
                 juce::Justification::centredLeft, true);
         }
     }
-    if ((catalog != nullptr && row.kind == RowKind::project) || row.kind == RowKind::track)
+    else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint)
+    {
+        g.setColour(juce::Colour(0xffaebdca));
+        g.setFont(juce::FontOptions(12.0f));
+        g.drawText(row.kind == RowKind::task ? "Task" : "Check",
+            juce::Rectangle<int> {layout.type + 7, 0, layout.parts - layout.type - 10, height},
+            juce::Justification::centredLeft, true);
+    }
+    if ((catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::task
+        || row.kind == RowKind::checkpoint)) || row.kind == RowKind::track)
     {
         if (row.manualStatus != arranger::Status::unmarked)
             badge(g, {layout.status, 7, layout.statusWidth, height - 14},
@@ -757,7 +901,8 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
                 juce::Justification::centredLeft);
         }
     }
-    if (row.kind == RowKind::folder || row.kind == RowKind::project || row.kind == RowKind::track)
+    if (row.kind == RowKind::folder || row.kind == RowKind::project || row.kind == RowKind::track
+        || (row.kind == RowKind::task && row.total > 0))
         progressBar(g, layout.prog, height, layout.progWidth, row.done, row.total);
     if (row.notes.isNotEmpty())
     {

@@ -2,6 +2,7 @@
 
 #include "ArrangementTag.h"
 #include "SongSnapshot.h"
+#include "SongCatalog.h"
 #include <utility>
 
 namespace arranger
@@ -43,6 +44,18 @@ inline std::pair<int, int> songProgress(const SongSnapshot& song)
         ++total;
         if (status == Status::done) ++done;
     }
+    return {done, total};
+}
+
+inline std::pair<int, int> songProgress(const SongSnapshot& song, const CatalogSong* catalogSong)
+{
+    auto [done, total] = songProgress(song);
+    if (catalogSong != nullptr)
+        for (const auto& task : catalogSong->tasks)
+        {
+            ++total;
+            if (task.status == Status::done) ++done;
+        }
     return {done, total};
 }
 }

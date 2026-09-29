@@ -18,7 +18,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
-    enum class RowKind { folder, project, track, clip };
+    enum class RowKind { folder, project, task, checkpoint, track, clip };
     struct SectionLabel { juce::String name; juce::Colour colour; };
     struct Row
     {
@@ -34,7 +34,7 @@ private:
         bool midi = false;
         juce::String mediaType;
         int done = 0, total = 0;
-        juce::String songPath, folderId;
+        juce::String songPath, folderId, taskId, checkpointId;
         arranger::Status manualStatus = arranger::Status::unmarked;
     };
     struct CachedSong
@@ -53,6 +53,10 @@ private:
     void showSongMenu(const juce::String& songPath);
     void showFolderMenu(const juce::String& folderId);
     void showStatusMenu(const juce::String& songPath);
+    void showTaskMenu(const Row& row);
+    void showLocalStatusMenu(const Row& row);
+    void promptLocalName(const juce::String& songPath, const juce::String& taskId,
+        const juce::String& checkpointId = {}, bool rename = false);
     void catalogChanged();
     int getNumRows() override { return static_cast<int>(rows.size()); }
     juce::String getTooltipForRow(int row) override;

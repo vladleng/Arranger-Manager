@@ -1,4 +1,5 @@
 #include "SongCatalog.h"
+#include "SongProgress.h"
 #include <iostream>
 
 bool check(bool condition, const char* message)
@@ -42,5 +43,34 @@ int main()
     if (!check(previousCatalog.songs.size() == 1 && previousCatalog.songStatus(previousCatalog.songs[0].path)
             == arranger::Status::wait, "0.1 song status migration failed")
         || !check(!previousCatalog.toJson().contains("trackStatuses"), "Local track statuses must be ignored")) return 1;
+
+    const auto first = catalog.addTask("C:\\Songs\\First.song", "Composition");
+    const auto second = catalog.addTask("C:\\Songs\\First.song", "Harmony");
+    const auto verse = catalog.addCheckpoint("C:\\Songs\\First.song", first, "Verse");
+    const auto chorus = catalog.addCheckpoint("C:\\Songs\\First.song", first, "Chorus");
+    if (!check(first.isNotEmpty() && second.isNotEmpty() && verse.isNotEmpty() && chorus.isNotEmpty(), "Task creation failed")
+        || !check(catalog.setCheckpointStatus("C:\\Songs\\First.song", first, verse, arranger::Status::done), "Checkpoint status failed")
+        || !check(catalog.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 2}, "Task progress failed")) return 1;
+
+    arranger::SongSnapshot snapshot;
+    arranger::SongTrack doneTrack; doneTrack.name = "DONE | Drums";
+    arranger::SongTrack workTrack; workTrack.name = "WIP | Bass";
+    snapshot.tracks = {doneTrack, workTrack};
+    if (!check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{1, 4},
+            "Song progress must count top-level tasks and managed tracks only")
+        || !check(catalog.setTaskStatus("C:\\Songs\\First.song", first, arranger::Status::done), "Task status failed")
+        || !check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{2, 4},
+            "Only task DONE may raise song progress")) return 1;
+    auto tasksRestored = arranger::SongCatalog::fromJson(catalog.toJson());
+    if (!check(tasksRestored.findTask("C:\\Songs\\First.song", first) != nullptr, "Task round-trip failed")
+        || !check(tasksRestored.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 2},
+            "Checkpoint round-trip failed")
+        || !check(tasksRestored.findSong("C:\\Songs\\Second.song")->tasks.empty(), "Tasks leaked to another song")
+        || !check(tasksRestored.editTask("C:\\Songs\\First.song", second, "Instrumentation"), "Task rename failed")
+        || !check(tasksRestored.editCheckpoint("C:\\Songs\\First.song", first, chorus, "Final chorus"), "Checkpoint rename failed")
+        || !check(tasksRestored.removeCheckpoint("C:\\Songs\\First.song", first, verse), "Checkpoint removal failed")
+        || !check(tasksRestored.removeTask("C:\\Songs\\First.song", first), "Task removal failed")
+        || !check(tasksRestored.removeSong("C:\\Songs\\First.song") && tasksRestored.findSong("C:\\Songs\\First.song") == nullptr,
+            "Song removal must remove local tasks")) return 1;
     return 0;
 }
