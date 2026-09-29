@@ -38,7 +38,7 @@ int main()
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
         "<MediaTrack name=\"WIP | Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
-        "<List x:id=\"Events\"><AudioEvent name=\"WIP | Drums | Record five parts\" start=\"32\" length=\"8\"/>"
+        "<List x:id=\"Events\"><AudioEvent name=\"WIP | Drums | Record five parts\" clipID=\"clip-1\" start=\"32\" length=\"8\"/>"
         "<AudioEvent name=\"DONE | Before Start\" start=\"20\" length=\"4\"/>"
         "<AudioEvent name=\"DONE | Scratch Pad\" start=\"50\" length=\"4\"/>"
         "<AudioEvent name=\"DONE | Beyond End\" start=\"46\" length=\"4\"/>"
@@ -82,7 +82,8 @@ int main()
         && check(!arranger::studioProColour("FFGG2A94").has_value(), "Invalid color accepted")
         && check(snapshot.markers.size() == 6 && snapshot.markers[0].start == "32"
             && snapshot.markers[5].name == "End", "Marker mismatch")
-        && check(snapshot.events[0].name == "WIP | Drums | Record five parts" && snapshot.events[0].track == "WIP | Drums", "Audio event mismatch")
+        && check(snapshot.events[0].name == "WIP | Drums | Record five parts" && snapshot.events[0].track == "WIP | Drums"
+            && snapshot.events[0].clipId == "clip-1", "Audio event mismatch")
         && check(snapshot.events[1].name == "DONE | P1" && snapshot.events[1].type == "MusicPart", "MIDI event mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[0]) == std::vector<size_t>{0}, "Intro mapping mismatch")
         && check(arranger::matchingSectionIndices(snapshot, snapshot.events[1]) == std::vector<size_t>{1}, "Verse mapping mismatch")

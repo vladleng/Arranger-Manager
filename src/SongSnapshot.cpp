@@ -176,6 +176,7 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                         event.mediaType = track->getStringAttribute("mediaType");
                         event.type = item->getTagName();
                         event.name = item->getStringAttribute("name");
+                        event.clipId = item->getStringAttribute("clipID");
                         event.start = item->getStringAttribute("start", "0");
                         event.length = item->getStringAttribute("length", "0");
                         event.timeFormat = item->getStringAttribute("timeFormat");

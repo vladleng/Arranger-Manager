@@ -33,22 +33,21 @@ void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, 
     g.drawText(label, bounds, juce::Justification::centred);
 }
 
-struct Columns { int type, parts, partsWidth, status, prog, notes, notesWidth, nameWidth, statusWidth, progWidth;
-    bool showTypeName; };
+struct Columns { int type, parts, partsWidth, status, prog, notes, notesWidth, nameWidth, statusWidth, progWidth; };
 Columns columnsFor(int width)
 {
-    const bool showTypeName = width >= 700;
-    const int nameWidth = std::max(145, static_cast<int>(width * (showTypeName ? 0.34f : 0.35f)));
+    const bool wide = width >= 700;
+    const int nameWidth = std::max(145, static_cast<int>(width * (wide ? 0.38f : 0.35f)));
     const int type = nameWidth + 6;
-    const int parts = type + (showTypeName ? 92 : 32);
-    const int partsWidth = showTypeName ? 86 : 62;
+    const int parts = type + 32;
+    const int partsWidth = wide ? 86 : 62;
     const int status = parts + partsWidth + 6;
-    const int statusWidth = showTypeName ? 90 : 76;
+    const int statusWidth = wide ? 90 : 76;
     const int prog = status + statusWidth + 7;
-    const int progWidth = showTypeName ? 86 : 64;
+    const int progWidth = wide ? 86 : 64;
     const int notes = prog + progWidth + 10;
     return { type, parts, partsWidth, status, prog, notes, std::max(1, width - notes - 10),
-        nameWidth, statusWidth, progWidth, showTypeName };
+        nameWidth, statusWidth, progWidth };
 }
 
 void mediaIcon(juce::Graphics& g, int x, int height, bool midi)
@@ -87,6 +86,29 @@ void instrumentIcon(juce::Graphics& g, int x, int height)
         g.fillRect(left + 3.6f * static_cast<float>(key), top + 7.0f, 1.0f, 6.0f);
     for (const float key : { 3.0f, 6.6f, 13.8f })
         g.fillRect(left + key, top, 2.5f, 8.0f);
+}
+
+void taskIcon(juce::Graphics& g, int x, int height, bool checkpoint)
+{
+    const auto top = (static_cast<float>(height) - 18.0f) * 0.5f;
+    g.setColour(juce::Colour(0xff8795a3));
+    if (checkpoint)
+    {
+        g.drawEllipse(static_cast<float>(x + 8), top + 2.0f, 14.0f, 14.0f, 1.5f);
+        juce::Path tick;
+        tick.startNewSubPath(static_cast<float>(x + 11), top + 9.0f);
+        tick.lineTo(static_cast<float>(x + 14), top + 12.0f);
+        tick.lineTo(static_cast<float>(x + 19), top + 6.0f);
+        g.strokePath(tick, juce::PathStrokeType(1.7f));
+        return;
+    }
+    g.drawRoundedRectangle(static_cast<float>(x + 7), top, 18.0f, 18.0f, 2.5f, 1.5f);
+    for (int i = 0; i < 3; ++i)
+    {
+        const auto y = top + 4.5f + 5.0f * static_cast<float>(i);
+        g.fillRect(static_cast<float>(x + 10), y, 2.5f, 2.5f);
+        g.fillRect(static_cast<float>(x + 15), y + 0.7f, 7.0f, 1.3f);
+    }
 }
 
 juce::Colour savedColour(const juce::String& saved)
@@ -137,7 +159,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1b", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1b fix1", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -146,7 +168,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
         label->setColour(juce::Label::textColourId, juce::Colour(0xffdce4eb));
         addAndMakeVisible(*label);
     }
-    help.setText(catalog != nullptr ? "Right-click song to add task; right-click task for checkpoints. Click local Status to edit."
+    help.setText(catalog != nullptr ? "Right-click song/task for items. Click Status or Notes to edit local data."
         : "Saved project snapshot - Save in Studio Pro to update", juce::dontSendNotification);
     help.setColour(juce::Label::textColourId, juce::Colour(0xffaebdca));
     path.setText("No project selected", juce::dontSendNotification);
@@ -474,6 +496,8 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
                 depth + 1, !task.checkpoints.empty(), open};
             item.songPath = songPath;
             item.taskId = task.id;
+            item.noteKey = arranger::taskNoteKey(task.id);
+            item.notes = catalog->localNote(songPath, item.noteKey);
             item.manualStatus = task.status;
             std::tie(item.done, item.total) = task.progress();
             rows.push_back(std::move(item));
@@ -484,13 +508,16 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
                     child.songPath = songPath;
                     child.taskId = task.id;
                     child.checkpointId = checkpoint.id;
+                    child.noteKey = arranger::checkpointNoteKey(checkpoint.id);
+                    child.notes = catalog->localNote(songPath, child.noteKey);
                     child.manualStatus = checkpoint.status;
                     rows.push_back(std::move(child));
                 }
         }
     if (!song.ok()) return;
 
-    auto addClip = [this, &song, &songPath](const arranger::SongEvent& event, int clipDepth)
+    auto addClip = [this, &song, &songPath](const arranger::SongEvent& event,
+        int clipDepth, const juce::String& noteKey)
     {
         const auto tag = arranger::parse(event.name.toStdString());
         const auto fallback = event.type == "MusicPart" ? "MIDI" : "Audio";
@@ -505,7 +532,8 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             const auto& section = song.sections[index];
             row.sections.push_back({section.name, savedColour(section.color)});
         }
-        row.notes = juce::String::fromUTF8(tag.note.c_str());
+        row.noteKey = noteKey;
+        if (catalog != nullptr) row.notes = catalog->localNote(songPath, noteKey);
         rows.push_back(std::move(row));
     };
 
@@ -514,6 +542,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         const auto& track = song.tracks[i];
         const auto trackName = arranger::parseTrackName(track.name.toStdString());
         if (trackName.status == arranger::Status::unmarked) continue;
+        const auto trackNoteKey = arranger::trackNoteKey(track, i);
         const std::string trackKey = (catalogProject ? key + ":" : std::string()) + "track:"
             + (track.id.isNotEmpty() ? track.id.toStdString() : std::to_string(i));
         const auto trackOpen = catalogProject ? expandedChildren.contains(trackKey) : !collapsed.contains(trackKey);
@@ -522,7 +551,8 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         rows.push_back({RowKind::track, displayName,
             juce::String(static_cast<int>(track.events.size())) + " clips", {}, {}, {},
             trackKey, depth + 1, !track.events.empty(), trackOpen});
-        rows.back().notes = track.notes.replaceCharacters("\r\n", "  ").trim();
+        rows.back().noteKey = trackNoteKey;
+        if (catalog != nullptr) rows.back().notes = catalog->localNote(songPath, trackNoteKey);
         rows.back().trackColour = savedColour(track.color);
         rows.back().mediaType = track.mediaType;
         rows.back().songPath = songPath;
@@ -531,7 +561,16 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         rows.back().done = done;
         rows.back().total = total;
         if (!trackOpen) continue;
-        for (auto index : orderByStart(track.events)) addClip(track.events[index], depth + 2);
+        for (auto index : orderByStart(track.events))
+        {
+            const auto& event = track.events[index];
+            const auto base = arranger::clipNoteBaseKey(trackNoteKey, event);
+            size_t occurrence = 0;
+            for (size_t previous = 0; previous < index; ++previous)
+                if (arranger::clipNoteBaseKey(trackNoteKey, track.events[previous]) == base)
+                    ++occurrence;
+            addClip(event, depth + 2, arranger::clipNoteKey(trackNoteKey, event, occurrence));
+        }
     }
 }
 
@@ -700,6 +739,7 @@ void HubEditor::showTaskMenu(const Row& row)
     juce::PopupMenu menu;
     if (row.kind == RowKind::task) menu.addItem(1, "New checkpoint...");
     menu.addItem(2, "Rename...");
+    menu.addItem(4, "Edit local note...");
     menu.addSeparator();
     menu.addItem(3, row.kind == RowKind::task ? "Delete task..." : "Delete checkpoint...");
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
@@ -712,6 +752,7 @@ void HubEditor::showTaskMenu(const Row& row)
                 safe->promptLocalName(row.songPath, row.taskId, row.checkpointId, true);
                 return;
             }
+            if (result == 4) { safe->promptLocalNote(row); return; }
             if (result != 3) return;
             auto* dialog = new juce::AlertWindow("Delete local item",
                 row.kind == RowKind::task ? "Delete task and all its checkpoints?"
@@ -730,6 +771,40 @@ void HubEditor::showTaskMenu(const Row& row)
         });
 }
 
+void HubEditor::showTrackOrClipMenu(const Row& row)
+{
+    juce::PopupMenu menu;
+    menu.addItem(1, "Edit local note...");
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+        [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
+        {
+            if (safe != nullptr && result == 1) safe->promptLocalNote(row);
+        });
+}
+
+void HubEditor::promptLocalNote(const Row& row)
+{
+    if (catalog == nullptr || row.songPath.isEmpty() || row.noteKey.isEmpty()) return;
+    auto* dialog = new juce::AlertWindow("Local note", "Note for " + row.title,
+        juce::MessageBoxIconType::QuestionIcon);
+    dialog->addTextEditor("note", catalog->localNote(row.songPath, row.noteKey), "Note");
+    if (auto* editor = dialog->getTextEditor("note"))
+    {
+        editor->setMultiLine(true);
+        editor->setReturnKeyStartsNewLine(true);
+    }
+    dialog->addButton("Save", 1);
+    dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+        [safe = juce::Component::SafePointer<HubEditor>(this), dialog, row](int result)
+        {
+            if (safe == nullptr || result != 1) return;
+            if (safe->catalog->setLocalNote(row.songPath, row.noteKey,
+                dialog->getTextEditorContents("note")))
+                safe->catalogChanged();
+        }), true);
+}
+
 void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
     if (index < 0 || index >= static_cast<int>(rows.size())) return;
@@ -745,11 +820,21 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
             return;
         }
     }
+    if (catalog != nullptr && row.noteKey.isNotEmpty() && !event.mods.isPopupMenu())
+    {
+        const auto layout = columnsFor(list.getWidth());
+        if (event.x >= layout.notes)
+        {
+            promptLocalNote(row);
+            return;
+        }
+    }
     if (catalog != nullptr && event.mods.isPopupMenu())
     {
         if (row.kind == RowKind::project) showSongMenu(row.songPath);
         else if (row.kind == RowKind::folder) showFolderMenu(row.folderId);
         else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint) showTaskMenu(row);
+        else if (row.kind == RowKind::track || row.kind == RowKind::clip) showTrackOrClipMenu(row);
         return;
     }
     const auto key = row.key;
@@ -813,8 +898,9 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
         g.setFont(juce::FontOptions(13.0f));
         g.drawText(row.expanded ? "v" : ">", juce::Rectangle<int> {x, 0, 15, height}, juce::Justification::centred);
     }
-    // Keep the arrow slot on tracks without clips so all track-color dots align.
-    const int textX = x + (row.expandable || row.kind == RowKind::track ? 18 : 9);
+    // Reserve the disclosure slot for every task and track, including leaf rows.
+    const int textX = x + (row.expandable || row.kind == RowKind::track
+        || row.kind == RowKind::task || row.kind == RowKind::checkpoint ? 18 : 9);
     g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
     g.setFont(juce::FontOptions(14.0f, parent ? juce::Font::bold : juce::Font::plain));
     int titleX = textX;
@@ -826,13 +912,19 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
         g.fillRect(titleX + 1, (height - 15) / 2, 7, 4);
         titleX += 22;
     }
-    if (row.kind == RowKind::track)
+    if (row.kind == RowKind::track || row.kind == RowKind::task)
     {
         const auto circle = juce::Rectangle<float> {static_cast<float>(titleX), (height - 12.0f) * 0.5f, 12.0f, 12.0f};
-        g.setColour(row.trackColour);
+        g.setColour(row.kind == RowKind::track ? row.trackColour : juce::Colour(0xff8795a3));
         g.fillEllipse(circle);
         g.setColour(juce::Colours::white.withAlpha(0.45f));
         g.drawEllipse(circle, 1.0f);
+        titleX += 19;
+    }
+    else if (row.kind == RowKind::checkpoint)
+    {
+        g.setColour(juce::Colour(0xff8795a3));
+        g.fillEllipse(static_cast<float>(titleX + 3), (height - 5.0f) * 0.5f, 5.0f, 5.0f);
         titleX += 19;
     }
     g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
@@ -868,24 +960,10 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     else if (row.kind == RowKind::track)
     {
         if (row.mediaType.equalsIgnoreCase("Audio")) mediaIcon(g, layout.type, height, false);
-        else if (row.mediaType.equalsIgnoreCase("Music")) instrumentIcon(g, layout.type, height);
-        if (layout.showTypeName)
-        {
-            g.setColour(juce::Colour(0xffdce4eb));
-            g.setFont(juce::FontOptions(12.0f));
-            g.drawText(row.mediaType,
-                juce::Rectangle<int> {layout.type + 32, 0, layout.parts - layout.type - 34, height},
-                juce::Justification::centredLeft, true);
-        }
+        else instrumentIcon(g, layout.type, height);
     }
     else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint)
-    {
-        g.setColour(juce::Colour(0xffaebdca));
-        g.setFont(juce::FontOptions(12.0f));
-        g.drawText(row.kind == RowKind::task ? "Task" : "Check",
-            juce::Rectangle<int> {layout.type + 7, 0, layout.parts - layout.type - 10, height},
-            juce::Justification::centredLeft, true);
-    }
+        taskIcon(g, layout.type, height, row.kind == RowKind::checkpoint);
     if ((catalog != nullptr && (row.kind == RowKind::project || row.kind == RowKind::task
         || row.kind == RowKind::checkpoint)) || row.kind == RowKind::track)
     {
@@ -908,8 +986,16 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     {
         g.setColour(juce::Colour(0xffdce4eb));
         g.setFont(juce::FontOptions(12.0f));
-        g.drawText(row.notes, juce::Rectangle<int> {layout.notes, 0, layout.notesWidth, height},
+        g.drawText(row.notes.replaceCharacters("\r\n", "  "),
+            juce::Rectangle<int> {layout.notes, 0, layout.notesWidth, height},
             juce::Justification::centredLeft, true);
+    }
+    else if (catalog != nullptr && row.noteKey.isNotEmpty())
+    {
+        g.setColour(juce::Colour(0xff8394a3));
+        g.setFont(juce::FontOptions(12.0f));
+        g.drawText("+ note", juce::Rectangle<int> {layout.notes, 0, layout.notesWidth, height},
+            juce::Justification::centredLeft);
     }
 }
 

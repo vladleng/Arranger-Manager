@@ -28,7 +28,7 @@ private:
         std::string key;
         int depth = 0;
         bool expandable = false, expanded = false;
-        juce::String notes;
+        juce::String notes, noteKey;
         std::vector<SectionLabel> sections;
         juce::Colour trackColour;
         bool midi = false;
@@ -55,6 +55,8 @@ private:
     void showStatusMenu(const juce::String& songPath);
     void showTaskMenu(const Row& row);
     void showLocalStatusMenu(const Row& row);
+    void promptLocalNote(const Row& row);
+    void showTrackOrClipMenu(const Row& row);
     void promptLocalName(const juce::String& songPath, const juce::String& taskId,
         const juce::String& checkpointId = {}, bool rename = false);
     void catalogChanged();

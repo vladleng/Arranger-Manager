@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ArrangerManager VERSION 0.1.6 LANGUAGES C CXX)
+project(ArrangerManager VERSION 0.1.7 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -81,7 +81,7 @@ juce_add_gui_app(ArrangerManagerDesktop
     PRODUCT_NAME "Arranger Manager")
 juce_generate_juce_header(ArrangerManagerDesktop)
 target_sources(ArrangerManagerDesktop PRIVATE
-    src/ArrangementTag.h src/StudioProColour.h src/SongProgress.h src/SongCatalog.h src/SongSnapshot.h src/SongSnapshot.cpp
+    src/ArrangementTag.h src/StudioProColour.h src/SongProgress.h src/SongCatalog.h src/SongNoteKeys.h src/SongSnapshot.h src/SongSnapshot.cpp
     src/HubEditor.h src/HubEditor.cpp src/HubApplication.cpp)
 target_compile_definitions(ArrangerManagerDesktop PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 if(MSVC)

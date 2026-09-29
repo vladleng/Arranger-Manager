@@ -61,15 +61,42 @@ int main()
         || !check(catalog.setTaskStatus("C:\\Songs\\First.song", first, arranger::Status::done), "Task status failed")
         || !check(arranger::songProgress(snapshot, catalog.findSong("C:\\Songs\\First.song")) == std::pair<int, int>{2, 4},
             "Only task DONE may raise song progress")) return 1;
+
+    const auto songPath = juce::String("C:\\Songs\\First.song");
+    const auto taskKey = arranger::taskNoteKey(first);
+    const auto cpKey = arranger::checkpointNoteKey(verse);
+    arranger::SongTrack noteTrack; noteTrack.id = "track-1";
+    const auto trackKey = arranger::trackNoteKey(noteTrack, 0);
+    arranger::SongEvent clip; clip.type = "AudioEvent"; clip.clipId = "clip-1";
+    clip.start = "32"; clip.length = "8"; clip.timeFormat = "seconds";
+    const auto clipKey = arranger::clipNoteKey(trackKey, clip, 0);
+    auto renamed = clip; renamed.name = "DONE | New title";
+    auto split = clip; split.start = "40";
+    if (!check(clipKey == arranger::clipNoteKey(trackKey, renamed, 0), "Clip rename detached local note")
+        || !check(clipKey != arranger::clipNoteKey(trackKey, split, 0), "Split clips shared local note")
+        || !check(clipKey != arranger::clipNoteKey(trackKey, clip, 1), "Identical clips shared local note")
+        || !check(trackKey == arranger::trackNoteKey(noteTrack, 5), "Track note changed with track ordering")) return 1;
+    if (!check(catalog.setLocalNote(songPath, taskKey, "Task idea"), "Task note failed")
+        || !check(catalog.setLocalNote(songPath, cpKey, "Checkpoint idea"), "Checkpoint note failed")
+        || !check(catalog.setLocalNote(songPath, trackKey, "Local track note"), "Track note failed")
+        || !check(catalog.setLocalNote(songPath, clipKey, "Local clip note"), "Clip note failed")) return 1;
+    const auto otherPath = juce::String("C:\\Songs\\Second.song");
+    if (!check(catalog.localNote(otherPath, clipKey).isEmpty(), "Note leaked between songs")
+        || !check(catalog.setLocalNote(songPath, trackKey, ""), "Clear note failed")
+        || !check(catalog.localNote(songPath, trackKey).isEmpty(), "Cleared note remained")) return 1;
     auto tasksRestored = arranger::SongCatalog::fromJson(catalog.toJson());
     if (!check(tasksRestored.findTask("C:\\Songs\\First.song", first) != nullptr, "Task round-trip failed")
         || !check(tasksRestored.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 2},
             "Checkpoint round-trip failed")
         || !check(tasksRestored.findSong("C:\\Songs\\Second.song")->tasks.empty(), "Tasks leaked to another song")
+        || !check(tasksRestored.localNote(songPath, clipKey) == "Local clip note", "Clip note round-trip failed")
+        || !check(tasksRestored.localNote(songPath, taskKey) == "Task idea", "Task note round-trip failed")
         || !check(tasksRestored.editTask("C:\\Songs\\First.song", second, "Instrumentation"), "Task rename failed")
         || !check(tasksRestored.editCheckpoint("C:\\Songs\\First.song", first, chorus, "Final chorus"), "Checkpoint rename failed")
         || !check(tasksRestored.removeCheckpoint("C:\\Songs\\First.song", first, verse), "Checkpoint removal failed")
+        || !check(tasksRestored.localNote(songPath, cpKey).isEmpty(), "Removed checkpoint kept its note")
         || !check(tasksRestored.removeTask("C:\\Songs\\First.song", first), "Task removal failed")
+        || !check(tasksRestored.localNote(songPath, taskKey).isEmpty(), "Removed task kept its note")
         || !check(tasksRestored.removeSong("C:\\Songs\\First.song") && tasksRestored.findSong("C:\\Songs\\First.song") == nullptr,
             "Song removal must remove local tasks")) return 1;
     return 0;

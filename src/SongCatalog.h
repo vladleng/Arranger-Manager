@@ -2,12 +2,14 @@
 
 #include <juce_core/juce_core.h>
 #include "ArrangementTag.h"
+#include "SongNoteKeys.h"
 #include <utility>
 #include <vector>
 
 namespace arranger
 {
 struct CatalogFolder { juce::String id, name; };
+struct CatalogNote { juce::String key, text; };
 struct CatalogCheckpoint { juce::String id, name; Status status = Status::todo; };
 struct CatalogTask
 {
@@ -28,6 +30,7 @@ struct CatalogSong
     juce::String path, folderId;
     Status status = Status::unmarked;
     std::vector<CatalogTask> tasks;
+    std::vector<CatalogNote> localNotes;
 };
 
 class SongCatalog
@@ -63,6 +66,30 @@ public:
         for (auto& song : songs)
             if (song.path.equalsIgnoreCase(path)) { song.status = status; return true; }
         return false;
+    }
+
+    juce::String localNote(const juce::String& path, const juce::String& key) const
+    {
+        if (const auto* song = findSong(path))
+            for (const auto& note : song->localNotes)
+                if (note.key == key) return note.text;
+        return {};
+    }
+
+    bool setLocalNote(const juce::String& path, const juce::String& key, juce::String text)
+    {
+        auto* song = findSong(path);
+        if (song == nullptr || key.isEmpty()) return false;
+        text = text.trim();
+        for (auto it = song->localNotes.begin(); it != song->localNotes.end(); ++it)
+            if (it->key == key)
+            {
+                if (text.isEmpty()) song->localNotes.erase(it);
+                else it->text = std::move(text);
+                return true;
+            }
+        if (text.isNotEmpty()) song->localNotes.push_back({key, std::move(text)});
+        return true;
     }
 
     const CatalogSong* findSong(const juce::String& path) const
@@ -140,7 +167,14 @@ public:
     {
         if (auto* song = findSong(path))
             for (auto it = song->tasks.begin(); it != song->tasks.end(); ++it)
-                if (it->id == id) { song->tasks.erase(it); return true; }
+                if (it->id == id)
+                {
+                    setLocalNote(path, taskNoteKey(id), {});
+                    for (const auto& cp : it->checkpoints)
+                        setLocalNote(path, checkpointNoteKey(cp.id), {});
+                    song->tasks.erase(it);
+                    return true;
+                }
         return false;
     }
 
@@ -148,7 +182,12 @@ public:
     {
         if (auto* task = findTask(path, taskId))
             for (auto it = task->checkpoints.begin(); it != task->checkpoints.end(); ++it)
-                if (it->id == id) { task->checkpoints.erase(it); return true; }
+                if (it->id == id)
+                {
+                    setLocalNote(path, checkpointNoteKey(id), {});
+                    task->checkpoints.erase(it);
+                    return true;
+                }
         return false;
     }
 
@@ -242,6 +281,15 @@ public:
                 taskArray.add(juce::var(taskItem.release()));
             }
             item->setProperty("tasks", taskArray);
+            juce::Array<juce::var> notesArray;
+            for (const auto& note : song.localNotes)
+            {
+                auto entry = std::make_unique<juce::DynamicObject>();
+                entry->setProperty("key", note.key);
+                entry->setProperty("text", note.text);
+                notesArray.add(juce::var(entry.release()));
+            }
+            item->setProperty("localNotes", notesArray);
             songArray.add(juce::var(item.release()));
         }
         root->setProperty("folders", folderArray);
@@ -275,6 +323,16 @@ public:
                 if (catalog.addSong(path, folderId))
                 {
                     catalog.setSongStatus(path, parseStatus(item.getProperty("status", {}).toString().toStdString()));
+                    const auto notesList = item.getProperty("localNotes", {});
+                    if (const auto* entries = notesList.getArray())
+                        for (const auto& entry : *entries)
+                            if (entry.isObject())
+                            {
+                                const auto key = entry.getProperty("key", {}).toString();
+                                const auto value = entry.getProperty("text", {}).toString();
+                                if (catalog.localNote(path, key).isEmpty())
+                                    catalog.setLocalNote(path, key, value);
+                            }
                     const auto taskList = item.getProperty("tasks", {});
                     if (const auto* tasks = taskList.getArray())
                         for (const auto& task : *tasks)

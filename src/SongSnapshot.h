@@ -6,7 +6,7 @@ namespace arranger
 {
 struct SongEvent
 {
-    juce::String track, trackId, mediaType, type, name, start, length, timeFormat;
+    juce::String track, trackId, mediaType, type, name, start, length, timeFormat, clipId;
 };
 
 struct SongTrack
