@@ -787,20 +787,20 @@ void HubEditor::promptLocalNote(const Row& row)
     if (catalog == nullptr || row.songPath.isEmpty() || row.noteKey.isEmpty()) return;
     auto* dialog = new juce::AlertWindow("Local note", "Note for " + row.title,
         juce::MessageBoxIconType::QuestionIcon);
-    dialog->addTextEditor("note", catalog->localNote(row.songPath, row.noteKey), "Note");
-    if (auto* editor = dialog->getTextEditor("note"))
-    {
-        editor->setMultiLine(true);
-        editor->setReturnKeyStartsNewLine(true);
-    }
+    // AlertWindow's built-in text editor is fixed to a one-line height.
+    auto editor = std::make_shared<juce::TextEditor>("Note");
+    editor->setMultiLine(true);
+    editor->setReturnKeyStartsNewLine(true);
+    editor->setText(catalog->localNote(row.songPath, row.noteKey));
+    editor->setSize(480, 120);
+    dialog->addCustomComponent(editor.get());
     dialog->addButton("Save", 1);
     dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
     dialog->enterModalState(true, juce::ModalCallbackFunction::create(
-        [safe = juce::Component::SafePointer<HubEditor>(this), dialog, row](int result)
+        [safe = juce::Component::SafePointer<HubEditor>(this), editor, row](int result)
         {
             if (safe == nullptr || result != 1) return;
-            if (safe->catalog->setLocalNote(row.songPath, row.noteKey,
-                dialog->getTextEditorContents("note")))
+            if (safe->catalog->setLocalNote(row.songPath, row.noteKey, editor->getText()))
                 safe->catalogChanged();
         }), true);
 }
