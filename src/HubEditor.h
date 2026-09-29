@@ -89,6 +89,7 @@ private:
     void listBoxItemClicked(int, const juce::MouseEvent&) override;
     void listBoxItemDoubleClicked(int, const juce::MouseEvent&) override;
     juce::var getDragSourceDescription(const juce::SparseSet<int>&) override;
+    bool mayDragToExternalWindows() const override { return false; }
     void listWasScrolled() override;
 
     std::function<juce::String()> getProjectPath;
