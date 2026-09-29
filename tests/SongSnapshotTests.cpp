@@ -37,13 +37,16 @@ int main()
     add(zip, "Song/song.xml", std::string("\xEF\xBB\xBF") +
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         "<Song><Attributes x:id=\"Root\"><List x:id=\"Tracks\">"
-        "<MediaTrack name=\"WIP | Drums\" trackID=\"track-1\" mediaType=\"Audio\" color=\"FF34A9F2\">"
+        "<FolderTrack name=\"Rhythm\" trackID=\"folder-1\" color=\"FF34A9F2\"/>"
+        "<FolderTrack name=\"Drums\" trackID=\"folder-2\" parentFolder=\"folder-1\"/>"
+        "<FolderTrack name=\"Empty\" trackID=\"folder-3\"/>"
+        "<MediaTrack name=\"WIP | Drums\" trackID=\"track-1\" parentFolder=\"folder-2\" mediaType=\"Audio\" color=\"FF34A9F2\">"
         "<List x:id=\"Events\"><AudioEvent name=\"WIP | Drums | Record five parts\" clipID=\"clip-1\" start=\"32\" length=\"8\"/>"
         "<AudioEvent name=\"DONE | Before Start\" start=\"20\" length=\"4\"/>"
         "<AudioEvent name=\"DONE | Scratch Pad\" start=\"50\" length=\"4\"/>"
         "<AudioEvent name=\"DONE | Beyond End\" start=\"46\" length=\"4\"/>"
         "</List></MediaTrack>"
-        "<MediaTrack name=\"Keys\" trackID=\"track-2\" mediaType=\"Music\">"
+        "<MediaTrack name=\"Keys\" trackID=\"track-2\" parentFolder=\"folder-3\" mediaType=\"Music\">"
         "<List x:id=\"Events\"><MusicPart name=\"DONE | P1\" start=\"40\" length=\"8\"/>"
         "<MusicPart name=\"DONE | At End\" start=\"48\" length=\"1\"/>"
         "</List></MediaTrack>"
@@ -66,6 +69,14 @@ int main()
         && check(snapshot.artist == "Artist" && snapshot.notes == "Project notes", "Metadata mismatch")
         && check(snapshot.trackCount == 2 && snapshot.events.size() == 2, "Event count mismatch")
         && check(snapshot.tracks.size() == 2 && snapshot.tracks[0].events.size() == 1, "Track grouping mismatch")
+        && check(snapshot.trackFolders.size() == 3 && snapshot.trackOrder.size() == 5
+            && snapshot.trackOrder[0].folder && !snapshot.trackOrder[3].folder
+            && snapshot.trackFolders[1].parentFolder == "folder-1"
+            && snapshot.tracks[0].parentFolder == "folder-2", "Folder hierarchy mismatch")
+        && check(arranger::folderContainsManagedTrack(snapshot, "folder-1")
+            && arranger::folderContainsManagedTrack(snapshot, "folder-2")
+            && !arranger::folderContainsManagedTrack(snapshot, "folder-3"),
+            "Only folders with marked descendants should be visible")
         && check(snapshot.tracks[0].notes == "WIP | Record five parts" && snapshot.tracks[1].notes.isEmpty(), "Track notes mismatch")
         && check(arranger::parseTrackName(snapshot.tracks[0].name.toStdString()).status == arranger::Status::wip
             && arranger::parseTrackName(snapshot.tracks[0].name.toStdString()).name == "Drums",

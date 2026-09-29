@@ -1,6 +1,6 @@
 # Arranger Manager — передача контекста
 
-**Срез на 2026-09-29:** база 0.1 fix4 принята; запись `.song` отложена, PR #28 закрыт без слияния. 0.1b проверена пользователем; fix1 с локальными Notes и правками UI находится в PR #30 поверх неё. Дополнение 0.1c (#31) находится в ветке `hybrid-0-1c-inline-drag-song-types` поверх PR #30. Начните с [README](../README.md), затем с этого файла. [CONCEPT](CONCEPT.md) фиксирует действующие решения, [ROADMAP](ROADMAP.md) — следующие этапы. Документы версий `HUB-0.0*.md` и ARA относятся к истории; изменения кода и состояние Issues/PR нужно проверить в GitHub перед началом новой работы.
+**Срез на 2026-09-29:** база 0.1 fix4 принята; запись `.song` отложена, PR #28 закрыт без слияния. 0.1b проверена пользователем; fix1 с локальными Notes и правками UI находится в PR #30 поверх неё. Дополнение 0.1c (#31) находится в PR #32 поверх PR #30. Дополнение 0.1d (#33) находится в ветке `hybrid-0-1d-folders-menu-song-notes` поверх PR #32. Начните с [README](../README.md), затем с этого файла. [CONCEPT](CONCEPT.md) фиксирует действующие решения, [ROADMAP](ROADMAP.md) — следующие этапы. Документы версий `HUB-0.0*.md` и ARA относятся к истории; изменения кода и состояние Issues/PR нужно проверить в GitHub перед началом новой работы.
 
 ## Что пользователь хочет получить
 
@@ -31,6 +31,10 @@ Notes строк задач, чек-поинтов, треков и клипов
 
 Клик по Notes начинает редактирование в ячейке; выход из поля сохраняет, Esc отменяет. Двойной клик по имени задачи/чек-поинта редактирует его в строке. Перетаскивание задачи на соседнюю задачу той же песни или чек-поинта в пределах его задачи сохраняет новый порядок в JSON без смены ID, статусов и заметок. Type песни — локальный enum с четырьмя значками; старые каталоги получают пустой тип, Status и PROG не меняются. См. [инструкцию 0.1c](HYBRID-0.1c.md). Новые функции версионируются буквой; `fix` обозначает исправление.
 
+## Дополнение 0.1d
+
+Reader сохраняет `FolderTrack` и `parentFolder` из плоского списка Tracks в `.song` и порядок папок/треков. UI строит вложенную иерархию, скрывая папки без размеченных потомков. PROG песни считает треки как прежде. Контекстные меню и выбор Status/Type привязаны к экранной точке нажатия. Локальная заметка строки песни имеет ключ `song` в каталоге, исходные Notes `.song` остаются в шапке. См. [инструкцию 0.1d](HYBRID-0.1d.md).
+
 ## Код и границы
 
 - `src/SongSnapshot.cpp/.h`: read-only ZIP/XML reader и фильтр клипов по Start/End для `metainfo.xml`, `notes.txt`, `notepad.xml`, `Song/song.xml`. Читает `MediaTrack`, обычные `AudioEvent` и `MusicPart`, `ArrangerTrack` и `MarkerTrack`. Нормализует unbound `x:id` только при чтении. XML схемы тестировались на Studio Pro 8.1.2; другие версии требуют проверки.
@@ -51,14 +55,14 @@ cmake --build build --config Release --target ArrangerManagerDesktop ArrangerMan
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует `.exe` и `docs/HYBRID-0.1c.md` под именем 0.1c. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. Fix4 и база 0.1b проверены пользователем; fix1 и 0.1c требуют проверки интерфейса в Windows.
+CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. `.github/workflows/windows-build.yml` пакует `.exe` и `docs/HYBRID-0.1d.md` под именем 0.1d. Отдельный ARA Inspector включается `-DARRANGER_BUILD_ARA_INSPECTOR=ON` с ARA SDK 2.3.0, в текущем Windows CI он не собирается. Fix4 и база 0.1b проверены пользователем; fix1, 0.1c и 0.1d требуют проверки интерфейса в Windows.
 
 ## GitHub и следующие действия
 
 - 0.1 fix4: ветка `hub-0-1-fix4-song-range-clip-notes` поверх fix3 (PR #25), а fix3 — поверх fix2 (PR #23), а fix2 — поверх fix1 (PR #21), fix1 — поверх 0.1 ([PR #20](https://github.com/vladleng/Arranger-Manager/pull/20)), которая базируется на каталоге ([PR #16](https://github.com/vladleng/Arranger-Manager/pull/16)). Предшествующие UI PR тоже могут быть draft; не считайте `main` содержащей 0.1 без проверки истории веток.
 - [#17](https://github.com/vladleng/Arranger-Manager/issues/17) — этап 2 закрыт после успешной пользовательской проверки 0.1 fix1; [#22](https://github.com/vladleng/Arranger-Manager/issues/22) — fix2 подтверждён пользователем. PR #16, #20, #21 и #23 остаются в стеке.
 - [#7](https://github.com/vladleng/Arranger-Manager/issues/7) — каталог частично реализован; поиск, приоритет песни, масштабирование и переносимость остаются.
-- [#29](https://github.com/vladleng/Arranger-Manager/issues/29) — задачи и fix1; [#31](https://github.com/vladleng/Arranger-Manager/issues/31) — 0.1c; [#8](https://github.com/vladleng/Arranger-Manager/issues/8) отложен.
+- [#29](https://github.com/vladleng/Arranger-Manager/issues/29) — задачи и fix1; [#31](https://github.com/vladleng/Arranger-Manager/issues/31) — 0.1c; [#33](https://github.com/vladleng/Arranger-Manager/issues/33) — 0.1d; [#8](https://github.com/vladleng/Arranger-Manager/issues/8) отложен.
 - [#19](https://github.com/vladleng/Arranger-Manager/issues/19) — исследование `.show`, сначала read-only на тестовом файле.
 
 Перед изменениями проверить актуальное состояние этих Issues, PR и CI. Пользовательская проверка fix2 прошла. Fix4 нужно проверить на сохранённом проекте с клипами в Scratch Pad, границами Start/End, заметкой в имени клипа и пересекающимися секциями Arranger. Ветки ещё не слиты. Не предполагать наличие схемы `.show` или безопасной записи `.song` по результатам read-only parser.

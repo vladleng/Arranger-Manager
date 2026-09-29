@@ -3,6 +3,8 @@
 #include "ArrangementTag.h"
 #include "SongSnapshot.h"
 #include "SongCatalog.h"
+#include <map>
+#include <set>
 #include <utility>
 
 namespace arranger
@@ -32,6 +34,28 @@ inline int managedTrackCount(const SongSnapshot& song)
     for (const auto& track : song.tracks)
         if (managedTrack(track)) ++count;
     return count;
+}
+
+inline bool folderContainsManagedTrack(const SongSnapshot& song, const juce::String& folderId)
+{
+    if (folderId.isEmpty()) return false;
+    std::map<juce::String, juce::String> parents;
+    for (const auto& folder : song.trackFolders)
+        if (folder.id.isNotEmpty()) parents.try_emplace(folder.id, folder.parentFolder);
+    for (const auto& track : song.tracks)
+    {
+        if (!managedTrack(track)) continue;
+        auto parent = track.parentFolder;
+        std::set<juce::String> seen;
+        while (parent.isNotEmpty() && seen.insert(parent).second)
+        {
+            if (parent == folderId) return true;
+            const auto found = parents.find(parent);
+            if (found == parents.end()) break;
+            parent = found->second;
+        }
+    }
+    return false;
 }
 
 inline std::pair<int, int> songProgress(const SongSnapshot& song)

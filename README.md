@@ -2,9 +2,9 @@
 
 Органайзер аранжировок для проектов Fender Studio Pro. Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
 
-## Текущее состояние — 0.1c на основе 0.1 fix4
+## Текущее состояние — 0.1d на основе 0.1 fix4
 
-Задачи и чек-поинты песни создаются в приложении: правый клик по песне → New task, по задаче → New checkpoint. Название меняется двойным кликом, порядок — перетаскиванием внутри песни или задачи. Notes редактируются прямо в ячейке, Type песни выбирается из четырёх значков. При наличии чек-поинтов задача показывает PROG по DONE; PROG песни считает DONE среди размеченных треков и задач верхнего уровня. Все задачи и заметки хранятся локально; `.song` приложение только читает. [Инструкция 0.1c](docs/HYBRID-0.1c.md).
+Задачи и чек-поинты песни создаются в приложении: правый клик по песне → New task, по задаче → New checkpoint. Название меняется двойным кликом, порядок — перетаскиванием внутри песни или задачи. Notes песни и строк задач/треков/клипов редактируются прямо в ячейке; исходные Notes песни видны в шапке. Type песни выбирается из четырёх значков. Папки Studio Pro показываются, если содержат дорожки со статусом. PROG песни считает DONE среди размеченных треков и задач верхнего уровня; папки и чек-поинты отдельно не считаются. Меню открываются у курсора. Все задачи и заметки хранятся локально; `.song` приложение только читает. [Инструкция 0.1d](docs/HYBRID-0.1d.md).
 
 - Каталог нескольких `.song`: добавление проектов, папки, перемещение и удаление записей из каталога. Исходные файлы при этом не удаляются.
 - Дерево `папка → песня → задачи/дорожки → чек-поинты/аудио/MIDI-клипы`; треки раскрываются по запросу. Группы Tracks/Markers и сами маркеры не показываются. Название клипа показано слева, а пересекающиеся секции Arranger — цветными квадратиками в Parts после Type. Поле Position убрано.
@@ -26,10 +26,10 @@ cmake --build build --config Release --target ArrangerManagerDesktop ArrangerMan
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CI создаёт архив `Arranger-Manager-0.1c-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b проверена пользователем; 0.1b fix1 и 0.1c требуют проверки интерфейса в Windows.
+CI создаёт архив `Arranger-Manager-0.1d-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b проверена пользователем; 0.1b fix1, 0.1c и 0.1d требуют проверки интерфейса в Windows.
 
 ## Как читать документы
 
 `docs/CONCEPT.md`, `docs/ROADMAP.md` и `docs/HANDOFF.md` описывают **текущий** путь развития. Файлы `docs/HUB-0.0*.md`, `docs/STAGE0-TEST.md`, `docs/MAP-PREVIEW-0.0b.md`, `docs/DOCK-TEST-0.0d.md` и `docs/CONTEXT-BRIDGE-*.md` фиксируют **исторические прототипы и проверки**; их ранние UI, приоритеты на клипах и служебные ARA-дорожки не следует переносить в новую разработку как действующие требования.
 
-Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3. Перед новой работой проверьте статус веток и PR.
+Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3; 0.1b fix1 — [PR #30](https://github.com/vladleng/Arranger-Manager/pull/30), 0.1c — [PR #32](https://github.com/vladleng/Arranger-Manager/pull/32), 0.1d — поверх него. Перед новой работой проверьте статус веток и PR.

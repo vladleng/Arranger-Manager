@@ -19,7 +19,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 private:
-    enum class RowKind { folder, project, task, checkpoint, track, clip };
+    enum class RowKind { folder, project, task, checkpoint, trackFolder, track, clip };
     enum class EditKind { none, note, name };
     class TaskList final : public juce::ListBox, public juce::DragAndDropTarget
     {
@@ -67,19 +67,19 @@ private:
     void appendSongRows(const arranger::SongSnapshot&, int depth, const std::string& key,
         const juce::String& songPath, bool catalogProject);
     void promptNewFolder();
-    void showSongMenu(const juce::String& songPath);
-    void showFolderMenu(const juce::String& folderId);
-    void showStatusMenu(const juce::String& songPath);
-    void showSongTypeMenu(const Row& row);
-    void showTaskMenu(const Row& row);
-    void showLocalStatusMenu(const Row& row);
+    void showSongMenu(const juce::String& songPath, juce::Point<int> screen);
+    void showFolderMenu(const juce::String& folderId, juce::Point<int> screen);
+    void showStatusMenu(const juce::String& songPath, juce::Point<int> screen);
+    void showSongTypeMenu(const Row& row, juce::Point<int> screen);
+    void showTaskMenu(const Row& row, juce::Point<int> screen);
+    void showLocalStatusMenu(const Row& row, juce::Point<int> screen);
     void promptLocalNote(const Row& row);
     void beginInlineEdit(int index, EditKind kind);
     void finishInlineEdit(bool save);
     void positionInlineEditor();
     bool dropTarget(const juce::String& sourceKey, int x, int y, int& targetIndex, bool& after) const;
     void reorderDrop(const juce::String& sourceKey, int index, bool after);
-    void showTrackOrClipMenu(const Row& row);
+    void showTrackOrClipMenu(const Row& row, juce::Point<int> screen);
     void promptLocalName(const juce::String& songPath, const juce::String& taskId,
         const juce::String& checkpointId = {}, bool rename = false);
     void catalogChanged();

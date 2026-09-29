@@ -81,6 +81,10 @@ int main()
             "Only task DONE may raise song progress")) return 1;
 
     const auto songPath = juce::String("C:\\Songs\\First.song");
+    if (!check(catalog.setLocalNote(songPath, arranger::songNoteKey(), "Song plan"),
+        "Song local note failed")
+        || !check(catalog.localNote(songPath, arranger::songNoteKey()) == "Song plan",
+            "Song local note did not read back")) return 1;
     const auto taskKey = arranger::taskNoteKey(first);
     const auto cpKey = arranger::checkpointNoteKey(verse);
     arranger::SongTrack noteTrack; noteTrack.id = "track-1";
@@ -104,6 +108,8 @@ int main()
         || !check(catalog.localNote(songPath, trackKey).isEmpty(), "Cleared note remained")) return 1;
     auto tasksRestored = arranger::SongCatalog::fromJson(catalog.toJson());
     if (!check(tasksRestored.findTask("C:\\Songs\\First.song", first) != nullptr, "Task round-trip failed")
+        || !check(tasksRestored.localNote(songPath, arranger::songNoteKey()) == "Song plan",
+            "Song local note round-trip failed")
         || !check(tasksRestored.findTask("C:\\Songs\\First.song", first)->progress() == std::pair<int, int>{1, 3},
             "Checkpoint round-trip failed")
         || !check(tasksRestored.findSong(songPath)->type == arranger::SongType::rough,

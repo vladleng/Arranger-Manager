@@ -31,4 +31,5 @@ inline juce::String clipNoteKey(const juce::String& trackKey, const SongEvent& e
 
 inline juce::String taskNoteKey(const juce::String& id) { return "task:" + noteField(id); }
 inline juce::String checkpointNoteKey(const juce::String& id) { return "checkpoint:" + noteField(id); }
+inline juce::String songNoteKey() { return "song"; }
 }

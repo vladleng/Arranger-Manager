@@ -34,6 +34,11 @@ void badge(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour colour, 
 }
 
 struct Columns { int type, parts, partsWidth, status, prog, notes, notesWidth, nameWidth, statusWidth, progWidth; };
+juce::PopupMenu::Options menuAt(juce::Point<int> screen, juce::Component& target)
+{
+    return juce::PopupMenu::Options().withTargetComponent(target)
+        .withTargetScreenArea({screen.x, screen.y, 1, 1});
+}
 Columns columnsFor(int width)
 {
     const bool wide = width >= 700;
@@ -213,7 +218,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1c", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1d", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -549,7 +554,12 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
     project.total = projectTotal;
     project.songPath = songPath;
     if (catalogProject) project.manualStatus = catalog->songStatus(songPath);
-    if (catalogSong != nullptr) project.songType = catalogSong->type;
+    if (catalogSong != nullptr)
+    {
+        project.songType = catalogSong->type;
+        project.noteKey = arranger::songNoteKey();
+        project.notes = catalog->localNote(songPath, project.noteKey);
+    }
     rows.push_back(std::move(project));
     if (!expanded) return;
 
@@ -604,11 +614,11 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         rows.push_back(std::move(row));
     };
 
-    for (size_t i = 0; i < song.tracks.size(); ++i)
+    auto appendTrack = [&](size_t i, int trackDepth)
     {
         const auto& track = song.tracks[i];
         const auto trackName = arranger::parseTrackName(track.name.toStdString());
-        if (trackName.status == arranger::Status::unmarked) continue;
+        if (trackName.status == arranger::Status::unmarked) return;
         const auto trackNoteKey = arranger::trackNoteKey(track, i);
         const std::string trackKey = (catalogProject ? key + ":" : std::string()) + "track:"
             + (track.id.isNotEmpty() ? track.id.toStdString() : std::to_string(i));
@@ -617,7 +627,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             : juce::String::fromUTF8(trackName.name.c_str());
         rows.push_back({RowKind::track, displayName,
             juce::String(static_cast<int>(track.events.size())) + " clips", {}, {}, {},
-            trackKey, depth + 1, !track.events.empty(), trackOpen});
+            trackKey, trackDepth, !track.events.empty(), trackOpen});
         rows.back().noteKey = trackNoteKey;
         if (catalog != nullptr) rows.back().notes = catalog->localNote(songPath, trackNoteKey);
         rows.back().trackColour = savedColour(track.color);
@@ -627,7 +637,7 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
         const auto [done, total] = arranger::clipProgress(track.events);
         rows.back().done = done;
         rows.back().total = total;
-        if (!trackOpen) continue;
+        if (!trackOpen) return;
         for (auto index : orderByStart(track.events))
         {
             const auto& event = track.events[index];
@@ -636,9 +646,51 @@ void HubEditor::appendSongRows(const arranger::SongSnapshot& song, int depth,
             for (size_t previous = 0; previous < index; ++previous)
                 if (arranger::clipNoteBaseKey(trackNoteKey, track.events[previous]) == base)
                     ++occurrence;
-            addClip(event, depth + 2, arranger::clipNoteKey(trackNoteKey, event, occurrence));
+            addClip(event, trackDepth + 1, arranger::clipNoteKey(trackNoteKey, event, occurrence));
         }
-    }
+    };
+
+    std::map<juce::String, size_t> folderIds;
+    for (size_t i = 0; i < song.trackFolders.size(); ++i)
+        if (song.trackFolders[i].id.isNotEmpty())
+            folderIds.try_emplace(song.trackFolders[i].id, i);
+    auto parentOf = [&](const juce::String& id) -> juce::String
+    {
+        return folderIds.contains(id) ? id : juce::String();
+    };
+    std::set<size_t> visitedFolders;
+    std::function<void(const juce::String&, int)> appendChildren;
+    appendChildren = [&](const juce::String& parent, int childDepth)
+    {
+        for (const auto& entry : song.trackOrder)
+        {
+            if (entry.folder)
+            {
+                if (entry.index >= song.trackFolders.size()) continue;
+                const auto& folder = song.trackFolders[entry.index];
+                if (parentOf(folder.parentFolder) != parent
+                    || !arranger::folderContainsManagedTrack(song, folder.id)
+                    || !visitedFolders.insert(entry.index).second) continue;
+                const auto folderKey = key + ":trackfolder:"
+                    + (folder.id.isNotEmpty() ? folder.id.toStdString() : std::to_string(entry.index));
+                const bool open = !collapsed.contains(folderKey);
+                Row item {RowKind::trackFolder, folder.name.isNotEmpty() ? folder.name : juce::String("Folder"),
+                    {}, {}, {}, {}, folderKey, childDepth, true, open};
+                item.songPath = songPath;
+                item.trackColour = savedColour(folder.color);
+                rows.push_back(std::move(item));
+                if (open && folder.id.isNotEmpty()) appendChildren(folder.id, childDepth + 1);
+            }
+            else
+            {
+                if (entry.index >= song.tracks.size()) continue;
+                const auto& track = song.tracks[entry.index];
+                if (parentOf(track.parentFolder) == parent)
+                    appendTrack(entry.index, childDepth);
+            }
+        }
+    };
+    appendChildren({}, depth + 1);
 }
 
 void HubEditor::promptNewFolder()
@@ -662,21 +714,29 @@ void HubEditor::promptNewFolder()
         }), true);
 }
 
-void HubEditor::showSongMenu(const juce::String& songPath)
+void HubEditor::showSongMenu(const juce::String& songPath, juce::Point<int> screen)
 {
     juce::PopupMenu menu;
     menu.addItem(2000, "New task...");
+    menu.addItem(2001, "Edit local note...");
     menu.addSeparator();
     menu.addItem(1, "Move to Songs (root)");
     for (size_t i = 0; i < catalog->folders.size(); ++i)
         menu.addItem(static_cast<int>(i) + 10, "Move to " + catalog->folders[i].name);
     menu.addSeparator();
     menu.addItem(1000, "Remove from catalog");
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), songPath](int result)
         {
             if (safe == nullptr || result == 0) return;
             if (result == 2000) { safe->promptLocalName(songPath, {}); return; }
+            if (result == 2001)
+            {
+                const auto found = std::find_if(safe->rows.begin(), safe->rows.end(), [&](const Row& row)
+                { return row.kind == RowKind::project && row.songPath.equalsIgnoreCase(songPath); });
+                if (found != safe->rows.end()) safe->promptLocalNote(*found);
+                return;
+            }
             if (result == 1000)
             {
                 safe->catalog->removeSong(songPath);
@@ -697,12 +757,12 @@ void HubEditor::showSongMenu(const juce::String& songPath)
         });
 }
 
-void HubEditor::showFolderMenu(const juce::String& folderId)
+void HubEditor::showFolderMenu(const juce::String& folderId, juce::Point<int> screen)
 {
     if (folderId.isEmpty()) return;
     juce::PopupMenu menu;
     menu.addItem(1, "Remove folder (keep songs)");
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), folderId](int result)
         {
             if (safe == nullptr || result != 1) return;
@@ -712,7 +772,7 @@ void HubEditor::showFolderMenu(const juce::String& folderId)
         });
 }
 
-void HubEditor::showStatusMenu(const juce::String& songPath)
+void HubEditor::showStatusMenu(const juce::String& songPath, juce::Point<int> screen)
 {
     if (catalog == nullptr || songPath.isEmpty()) return;
     const auto current = catalog->songStatus(songPath);
@@ -723,7 +783,7 @@ void HubEditor::showStatusMenu(const juce::String& songPath)
     for (int i = 0; i < static_cast<int>(std::size(options)); ++i)
         menu.addItem(i + 1, options[i] == arranger::Status::unmarked ? "Clear status" : arranger::label(options[i]),
             true, options[i] == current);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), songPath](int result)
         {
             if (safe == nullptr || result < 1 || result > 8) return;
@@ -735,7 +795,7 @@ void HubEditor::showStatusMenu(const juce::String& songPath)
         });
 }
 
-void HubEditor::showSongTypeMenu(const Row& row)
+void HubEditor::showSongTypeMenu(const Row& row, juce::Point<int> screen)
 {
     if (catalog == nullptr || row.kind != RowKind::project) return;
     juce::PopupMenu menu;
@@ -744,7 +804,7 @@ void HubEditor::showSongTypeMenu(const Row& row)
     const char* names[] {"Clear type", "Beginning", "Rough sketch", "Mixing", "Final mix"};
     for (int i = 0; i < 5; ++i)
         menu.addItem(i + 1, names[i], true, row.songType == types[i]);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
         {
             if (safe == nullptr || result < 1 || result > 5) return;
@@ -798,7 +858,7 @@ void HubEditor::promptLocalName(const juce::String& songPath, const juce::String
         }), true);
 }
 
-void HubEditor::showLocalStatusMenu(const Row& row)
+void HubEditor::showLocalStatusMenu(const Row& row, juce::Point<int> screen)
 {
     juce::PopupMenu menu;
     const arranger::Status options[] {arranger::Status::pool, arranger::Status::todo,
@@ -806,7 +866,7 @@ void HubEditor::showLocalStatusMenu(const Row& row)
         arranger::Status::done, arranger::Status::blocked};
     for (int i = 0; i < static_cast<int>(std::size(options)); ++i)
         menu.addItem(i + 1, arranger::label(options[i]), true, options[i] == row.manualStatus);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
         {
             if (safe == nullptr || result < 1 || result > 7) return;
@@ -821,7 +881,7 @@ void HubEditor::showLocalStatusMenu(const Row& row)
         });
 }
 
-void HubEditor::showTaskMenu(const Row& row)
+void HubEditor::showTaskMenu(const Row& row, juce::Point<int> screen)
 {
     juce::PopupMenu menu;
     if (row.kind == RowKind::task) menu.addItem(1, "New checkpoint...");
@@ -829,7 +889,7 @@ void HubEditor::showTaskMenu(const Row& row)
     menu.addItem(4, "Edit local note...");
     menu.addSeparator();
     menu.addItem(3, row.kind == RowKind::task ? "Delete task..." : "Delete checkpoint...");
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
         {
             if (safe == nullptr || result == 0) return;
@@ -858,11 +918,11 @@ void HubEditor::showTaskMenu(const Row& row)
         });
 }
 
-void HubEditor::showTrackOrClipMenu(const Row& row)
+void HubEditor::showTrackOrClipMenu(const Row& row, juce::Point<int> screen)
 {
     juce::PopupMenu menu;
     menu.addItem(1, "Edit local note...");
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&list),
+    menu.showMenuAsync(menuAt(screen, list),
         [safe = juce::Component::SafePointer<HubEditor>(this), row](int result)
         {
             if (safe != nullptr && result == 1) safe->promptLocalNote(row);
@@ -1052,7 +1112,7 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
         const auto layout = columnsFor(list.getWidth());
         if (event.x >= layout.type && event.x < layout.parts)
         {
-            showSongTypeMenu(row);
+            showSongTypeMenu(row, event.getScreenPosition());
             return;
         }
     }
@@ -1062,8 +1122,8 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
         const auto layout = columnsFor(list.getWidth());
         if (event.x >= layout.status && event.x < layout.status + layout.statusWidth)
         {
-            if (row.kind == RowKind::project) showStatusMenu(row.songPath);
-            else showLocalStatusMenu(row);
+            if (row.kind == RowKind::project) showStatusMenu(row.songPath, event.getScreenPosition());
+            else showLocalStatusMenu(row, event.getScreenPosition());
             return;
         }
     }
@@ -1078,10 +1138,11 @@ void HubEditor::listBoxItemClicked(int index, const juce::MouseEvent& event)
     }
     if (catalog != nullptr && event.mods.isPopupMenu())
     {
-        if (row.kind == RowKind::project) showSongMenu(row.songPath);
-        else if (row.kind == RowKind::folder) showFolderMenu(row.folderId);
-        else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint) showTaskMenu(row);
-        else if (row.kind == RowKind::track || row.kind == RowKind::clip) showTrackOrClipMenu(row);
+        const auto screen = event.getScreenPosition();
+        if (row.kind == RowKind::project) showSongMenu(row.songPath, screen);
+        else if (row.kind == RowKind::folder) showFolderMenu(row.folderId, screen);
+        else if (row.kind == RowKind::task || row.kind == RowKind::checkpoint) showTaskMenu(row, screen);
+        else if (row.kind == RowKind::track || row.kind == RowKind::clip) showTrackOrClipMenu(row, screen);
         return;
     }
     const auto key = row.key;
@@ -1144,7 +1205,8 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
 {
     if (index < 0 || index >= static_cast<int>(rows.size()) || width <= 0 || height <= 0) return;
     const auto& row = rows[static_cast<size_t>(index)];
-    const bool parent = row.kind == RowKind::folder || row.kind == RowKind::project;
+    const bool parent = row.kind == RowKind::folder || row.kind == RowKind::project
+        || row.kind == RowKind::trackFolder;
     g.fillAll(selected ? juce::Colour(0xff354554)
         : parent ? juce::Colour(0xff2b3540)
         : (index % 2 ? juce::Colour(0xff26313b) : juce::Colour(0xff222b33)));
@@ -1164,9 +1226,9 @@ void HubEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int he
     g.setColour(parent ? juce::Colours::white : juce::Colour(0xffdce4eb));
     g.setFont(juce::FontOptions(14.0f, parent ? juce::Font::bold : juce::Font::plain));
     int titleX = textX;
-    if (row.kind == RowKind::folder)
+    if (row.kind == RowKind::folder || row.kind == RowKind::trackFolder)
     {
-        g.setColour(juce::Colour(0xffd3a438));
+        g.setColour(row.kind == RowKind::folder ? juce::Colour(0xffd3a438) : row.trackColour);
         g.fillRoundedRectangle(static_cast<float>(titleX), (height - 11.0f) * 0.5f,
             15.0f, 11.0f, 2.0f);
         g.fillRect(titleX + 1, (height - 15) / 2, 7, 4);

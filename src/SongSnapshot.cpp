@@ -155,6 +155,17 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                     }
                     continue;
                 }
+                if (track->hasTagName("FolderTrack"))
+                {
+                    SongTrackFolder folder;
+                    folder.id = track->getStringAttribute("trackID");
+                    folder.name = track->getStringAttribute("name");
+                    folder.color = track->getStringAttribute("color");
+                    folder.parentFolder = track->getStringAttribute("parentFolder");
+                    snapshot.trackOrder.push_back({true, snapshot.trackFolders.size()});
+                    snapshot.trackFolders.push_back(std::move(folder));
+                    continue;
+                }
                 if (!track->hasTagName("MediaTrack")) continue;
                 ++snapshot.trackCount;
                 SongTrack songTrack;
@@ -162,6 +173,7 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                 songTrack.name = track->getStringAttribute("name");
                 songTrack.mediaType = track->getStringAttribute("mediaType");
                 songTrack.color = track->getStringAttribute("color");
+                songTrack.parentFolder = track->getStringAttribute("parentFolder");
                 if (auto note = trackNotes.find(songTrack.id); note != trackNotes.end())
                     songTrack.notes = note->second;
                 for (auto* events = track->getFirstChildElement(); events != nullptr; events = events->getNextElement())
@@ -183,6 +195,7 @@ SongSnapshot readSongSnapshot(const juce::File& song)
                         songTrack.events.push_back(std::move(event));
                     }
                 }
+                snapshot.trackOrder.push_back({false, snapshot.tracks.size()});
                 snapshot.tracks.push_back(std::move(songTrack));
             }
         }
