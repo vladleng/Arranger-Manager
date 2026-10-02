@@ -143,9 +143,11 @@ void WorkspaceShell::select(const juce::String& key)
 void WorkspaceShell::showDetails()
 {
     const bool daw = viewKey == "view:daw", allTasks = viewKey == "view:tasks", archivedView = viewKey == "view:archive";
+    // Hiding DAW may commit a focused inline editor and replace the model.
+    // Resolve page pointers only after that focus/visibility transition.
+    hub->setVisible(daw);
     const auto* page = model.findPage(selectedPage());
     const bool ordinary = page != nullptr && page->kind == "page";
-    hub->setVisible(daw);
     tasks.setVisible(allTasks);
     archive.setVisible(archivedView);
     for (auto* component : std::initializer_list<juce::Component*>{ &title, &breadcrumb, &description })
@@ -210,9 +212,11 @@ void WorkspaceShell::report(const juce::Result& result)
 void WorkspaceShell::promptPage(const juce::String& parentId, const juce::String& renameId)
 {
     const auto* existing = model.findPage(renameId);
-    auto* dialog = new juce::AlertWindow(existing ? text("Переименовать страницу") : text("Новая страница"),
+    const bool renaming = existing != nullptr;
+    const auto currentTitle = renaming ? existing->title : juce::String();
+    auto* dialog = new juce::AlertWindow(renaming ? text("Переименовать страницу") : text("Новая страница"),
         text("Название страницы"), juce::MessageBoxIconType::NoIcon, this);
-    dialog->addTextEditor("title", existing ? existing->title : juce::String(), text("Название"));
+    dialog->addTextEditor("title", currentTitle, text("Название"));
     dialog->addButton(text("Сохранить"), 1, juce::KeyPress(juce::KeyPress::returnKey));
     dialog->addButton(text("Отмена"), 0, juce::KeyPress(juce::KeyPress::escapeKey));
     juce::Component::SafePointer<WorkspaceShell> safe(this);
