@@ -3,6 +3,7 @@
 #include "HubEditor.h"
 #include "WorkspaceCommands.h"
 #include "BlockEditor.h"
+#include "TaskDetails.h"
 
 class WorkspaceShell final : public juce::Component
 {
@@ -55,6 +56,8 @@ private:
     bool execute(const arranger::WorkspaceAction&);
     juce::String selectedPage() const;
     void openTask(int);
+    void promptTask();
+    void archiveTask(const juce::String&);
     void report(const juce::Result&);
 
     arranger::WorkspaceModel& model;
@@ -71,7 +74,8 @@ private:
     ArchiveModel archiveModel { *this };
     juce::ListBox nav { "Pages", &navModel }, tasks { "All tasks", &taskModel }, archive { "Archive", &archiveModel };
     juce::Label brand, title, breadcrumb, description, empty;
-    juce::TextButton addPage, addChild, rename, move, archiveButton, restore, openSource;
+    juce::TextButton addPage, addChild, rename, move, archiveButton, restore, openSource, newTask, blocksTab, tasksTab;
     BlockEditor blockEditor;
+    std::unique_ptr<TaskDetails> taskDetails;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WorkspaceShell)
 };

@@ -32,8 +32,11 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     move.setButtonText(text("Переместить"));
     archiveButton.setButtonText(text("В архив"));
     restore.setButtonText(text("Восстановить"));
-    openSource.setButtonText(text("Открыть песню"));
-    for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &restore, &openSource }) addAndMakeVisible(button);
+    openSource.setButtonText(text("Открыть задачу"));
+    newTask.setButtonText(text("+ Задача"));
+    blocksTab.setButtonText(text("Блоки"));
+    tasksTab.setButtonText(text("Задачи"));
+    for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &restore, &openSource, &newTask, &blocksTab, &tasksTab }) addAndMakeVisible(button);
     for (auto* list : { &nav, &tasks, &archive })
     {
         addAndMakeVisible(list);
@@ -43,6 +46,15 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     }
     addAndMakeVisible(blockEditor);
     addAndMakeVisible(hub.get());
+    taskDetails = std::make_unique<TaskDetails>(model, [this](const auto& action) { return runCommand(action); },
+        [this](juce::String id) { select("pageTasks:" + id); },
+        [this](juce::String id) { archiveTask(id); },
+        [this](juce::String id)
+        {
+            if (viewKey == "task:" + id)
+                if (const auto* task = model.findTask(id)) title.setText(task->properties.name, juce::dontSendNotification);
+        });
+    addAndMakeVisible(taskDetails.get());
 
     addPage.onClick = [this] { promptPage({}); };
     addChild.onClick = [this] { promptPage(selectedPage()); };
@@ -51,6 +63,9 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     archiveButton.onClick = [this] { archivePage(selectedPage()); };
     restore.onClick = [this] { restorePage(); };
     openSource.onClick = [this] { openTask(tasks.getSelectedRow()); };
+    newTask.onClick = [this] { promptTask(); };
+    blocksTab.onClick = [this] { select("page:" + selectedPage()); };
+    tasksTab.onClick = [this] { select("pageTasks:" + selectedPage()); };
     refresh();
 }
 
@@ -79,17 +94,25 @@ void WorkspaceShell::resized()
     move.setBounds(actions.removeFromLeft(144).reduced(2));
     archiveButton.setBounds(actions.removeFromLeft(92).reduced(2));
     restore.setBounds(title.getX(), description.getBottom() + 3, 164, 30);
-    openSource.setBounds(title.getX(), description.getBottom() + 3, 180, 30);
-    content.removeFromTop(12);
+    openSource.setBounds(title.getX() + 520, description.getBottom() + 3, 180, 30);
+    content.removeFromTop(8);
+    auto tabs = content.removeFromTop(32);
+    blocksTab.setBounds(tabs.removeFromLeft(90).reduced(2));
+    tasksTab.setBounds(tabs.removeFromLeft(110).reduced(2));
+    newTask.setBounds(tabs.removeFromLeft(110).reduced(2));
+    content.removeFromTop(6);
     tasks.setBounds(content);
     archive.setBounds(content);
     blockEditor.setBounds(content);
+    taskDetails->setBounds(content);
     empty.setBounds(content.withHeight(80));
 }
 
 juce::String WorkspaceShell::selectedPage() const
 {
-    return viewKey.startsWith("page:") ? viewKey.substring(5) : juce::String();
+    if (viewKey.startsWith("page:")) return viewKey.substring(5);
+    if (viewKey.startsWith("pageTasks:")) return viewKey.substring(10);
+    return {};
 }
 
 void WorkspaceShell::refresh()
@@ -105,15 +128,25 @@ void WorkspaceShell::refresh()
         if (const auto* page = model.findPage(row.id))
             navigation.push_back({"page:" + page->id, page->title, row.depth});
     archived = arranger::WorkspaceQueries::archivedRoots(model);
+    for (const auto& task : model.tasks) if (task.archivedAt.isNotEmpty()) archived.push_back("task:" + task.id);
     navigation.push_back({"view:archive", text("Архив") + " (" + juce::String(static_cast<int>(archived.size())) + ")", 0});
+    juce::String navKey = viewKey;
+    if (viewKey.startsWith("pageTasks:")) navKey = "page:" + selectedPage();
+    if (viewKey.startsWith("task:"))
+    {
+        const auto* task = model.findTask(viewKey.substring(5));
+        if (task && !arranger::WorkspaceQueries::taskArchived(model, task->id)) navKey = "page:" + task->ownerPageId;
+    }
     int selected = -1;
     for (int i = 0; i < static_cast<int>(navigation.size()); ++i)
-        if (navigation[static_cast<size_t>(i)].key == viewKey) selected = i;
+        if (navigation[static_cast<size_t>(i)].key == navKey) selected = i;
     if (selected < 0) { viewKey = "view:daw"; selected = 0; }
     nav.updateContent();
     nav.selectRow(selected);
     nav.repaint();
     taskReferences = arranger::WorkspaceQueries::allTasks(model);
+    if (viewKey.startsWith("pageTasks:"))
+        std::erase_if(taskReferences, [&](const auto& ref) { return ref.ownerPageId != selectedPage(); });
     tasks.updateContent();
     tasks.deselectAllRows();
     for (int i = 0; i < static_cast<int>(taskReferences.size()); ++i)
@@ -146,63 +179,74 @@ void WorkspaceShell::select(const juce::String& key)
 void WorkspaceShell::showDetails()
 {
     const bool daw = viewKey == "view:daw", allTasks = viewKey == "view:tasks", archivedView = viewKey == "view:archive";
-    // Hiding DAW may commit a focused inline editor and replace the model.
-    // Resolve page pointers only after that focus/visibility transition.
-    hub->setVisible(daw);
-    const auto* page = model.findPage(selectedPage());
-    const bool ordinary = page != nullptr && page->kind == "page";
-    tasks.setVisible(allTasks);
+    const bool pageTasks = viewKey.startsWith("pageTasks:");
+    hub->setVisible(daw); // DAW focus transition may save/replace the model.
+    std::optional<arranger::WorkspacePage> page;
+    if (const auto* found = model.findPage(selectedPage())) page = *found;
+    std::optional<arranger::WorkspaceTask> task;
+    if (viewKey.startsWith("task:")) if (const auto* found = model.findTask(viewKey.substring(5))) task = *found;
+    const bool ordinary = page && page->kind == "page", taskView = task.has_value();
+    tasks.setVisible(allTasks || (ordinary && pageTasks));
     archive.setVisible(archivedView);
-    for (auto* component : std::initializer_list<juce::Component*>{ &title, &breadcrumb, &description })
-        component->setVisible(!daw);
+    taskDetails->setVisible(taskView);
+    for (auto* component : std::initializer_list<juce::Component*>{ &title, &breadcrumb, &description }) component->setVisible(!daw);
     for (auto* button : { &addChild, &rename, &move, &archiveButton }) button->setVisible(ordinary);
+    for (auto* button : { &blocksTab, &tasksTab }) button->setVisible(ordinary);
+    newTask.setVisible(ordinary || allTasks);
     restore.setVisible(archivedView);
     restore.setEnabled(archive.getSelectedRow() >= 0 && archive.getSelectedRow() < static_cast<int>(archived.size()));
-    openSource.setVisible(allTasks);
+    openSource.setVisible(allTasks || (ordinary && pageTasks));
     openSource.setEnabled(tasks.getSelectedRow() >= 0 && tasks.getSelectedRow() < static_cast<int>(taskReferences.size()));
-    blockEditor.setVisible(ordinary);
-    if (ordinary)
+    blockEditor.setVisible(ordinary && !pageTasks);
+    if (ordinary && !pageTasks)
     {
         const auto pageId = page->id;
         blockEditor.bind(pageId, [this, pageId]() -> std::optional<arranger::BlockEditorSession::Blocks>
         {
             const auto* current = model.findPage(pageId);
-            if (current == nullptr || current->kind != "page" || arranger::WorkspaceQueries::isArchived(model, pageId)) return {};
+            if (!current || current->kind != "page" || arranger::WorkspaceQueries::isArchived(model, pageId)) return {};
             return current->blocks;
         }, [this, pageId](const auto& expected, const auto& blocks)
         {
-            return runCommand([&](arranger::WorkspaceCommands& commands)
-                { return commands.replacePageBlocks(pageId, expected, blocks); });
+            return runCommand([&](arranger::WorkspaceCommands& cmd) { return cmd.replacePageBlocks(pageId, expected, blocks); });
         });
     }
     else blockEditor.bind({}, {}, {});
+    taskDetails->bind(taskView ? task->id : juce::String());
     empty.setVisible(false);
     if (allTasks)
     {
         breadcrumb.setText(text("Рабочее пространство"), juce::dontSendNotification);
         title.setText(text("Все задачи"), juce::dontSendNotification);
         description.setText(text("Задач: ") + juce::String(static_cast<int>(taskReferences.size()))
-            + text("  ·  Двойной клик открывает песню-источник"), juce::dontSendNotification);
-        if (taskReferences.empty()) { empty.setText(text("Добавьте задачу в каталоге DAW — она появится здесь."), juce::dontSendNotification); empty.setVisible(true); }
+            + text("  ·  Двойной клик открывает задачу или песню"), juce::dontSendNotification);
     }
     else if (archivedView)
     {
         breadcrumb.setText(text("Рабочее пространство"), juce::dontSendNotification);
         title.setText(text("Архив"), juce::dontSendNotification);
-        description.setText(text("Страницы и их содержимое сохраняются. Выберите страницу для восстановления."), juce::dontSendNotification);
+        description.setText(text("Страницы и задачи сохраняют содержимое. Для задачи сначала восстановите страницу-владельца."), juce::dontSendNotification);
         if (archived.empty()) { empty.setText(text("Архив пуст."), juce::dontSendNotification); empty.setVisible(true); }
     }
     else if (ordinary)
     {
-        page = model.findPage(selectedPage());
-        if (page == nullptr) return;
         breadcrumb.setText(arranger::WorkspaceQueries::breadcrumb(model, page->id), juce::dontSendNotification);
         title.setText(page->title, juce::dontSendNotification);
-        int children = 0;
-        for (const auto& item : model.pages)
-            if (item.parentPageId == page->id && !arranger::WorkspaceQueries::isArchived(model, item.id)) ++children;
-        description.setText(text("Вложенных страниц: ") + juce::String(children), juce::dontSendNotification);
-
+        int count = 0;
+        for (const auto& item : model.tasks)
+            if (item.ownerPageId == page->id && !arranger::WorkspaceQueries::taskArchived(model, item.id)) ++count;
+        tasksTab.setButtonText(text("Задачи (") + juce::String(count) + ")");
+        description.setText(text("Задач страницы: ") + juce::String(count), juce::dontSendNotification);
+    }
+    else if (taskView)
+    {
+        breadcrumb.setText(arranger::WorkspaceQueries::breadcrumb(model, task->ownerPageId), juce::dontSendNotification);
+        title.setText(task->properties.name, juce::dontSendNotification);
+        description.setText(text("Задача страницы · свойства, Notes, чек-поинты и описание"), juce::dontSendNotification);
+    }
+    if ((allTasks || (ordinary && pageTasks)) && taskReferences.empty())
+    {
+        empty.setText(text("Задач пока нет. Нажмите «+ Задача»."), juce::dontSendNotification); empty.setVisible(true);
     }
 }
 
@@ -216,14 +260,15 @@ bool WorkspaceShell::execute(const arranger::WorkspaceAction& action)
 }
 bool WorkspaceShell::flushEdits()
 {
-    const auto result = blockEditor.flush();
+    auto result = blockEditor.flush();
+    if (result.wasOk()) result = taskDetails->flush();
     if (result.failed()) report(result);
     return result.wasOk();
 }
 void WorkspaceShell::report(const juce::Result& result)
 {
     juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
-        text("Не удалось изменить страницу"), result.getErrorMessage(), this);
+        text("Не удалось сохранить изменение"), result.getErrorMessage(), this);
 }
 
 void WorkspaceShell::promptPage(const juce::String& parentId, const juce::String& renameId)
@@ -300,19 +345,59 @@ void WorkspaceShell::archivePage(const juce::String& id)
 }
 void WorkspaceShell::restorePage()
 {
-    const auto index = archive.getSelectedRow();
+    const int index = archive.getSelectedRow();
     if (index < 0 || index >= static_cast<int>(archived.size())) return;
     const auto id = archived[static_cast<size_t>(index)];
-    if (execute([&](arranger::WorkspaceCommands& commands) { return commands.restorePage(id); })) select("page:" + id);
+    if (id.startsWith("task:"))
+    {
+        if (execute([&](arranger::WorkspaceCommands& cmd) { return cmd.restoreTask(id.substring(5)); })) select(id);
+    }
+    else if (execute([&](arranger::WorkspaceCommands& cmd) { return cmd.restorePage(id); })) select("page:" + id);
+}
+void WorkspaceShell::archiveTask(const juce::String& id)
+{
+    const auto taskId = id;
+    if (execute([&](arranger::WorkspaceCommands& cmd) { return cmd.archiveTask(taskId); })) select("view:archive");
 }
 void WorkspaceShell::openTask(int index)
 {
     if (index < 0 || index >= static_cast<int>(taskReferences.size())) return;
-    const auto* song = arranger::WorkspaceQueries::song(model, taskReferences[static_cast<size_t>(index)].songId);
-    if (song == nullptr) return;
+    const auto ref = taskReferences[static_cast<size_t>(index)];
+    if (ref.songId.isEmpty()) { select("task:" + ref.taskId); return; }
+    const auto* song = arranger::WorkspaceQueries::song(model, ref.songId);
+    if (!song) return;
     const auto path = song->path;
     select("view:daw");
-    hub->openCatalogSong(path);
+    if (viewKey == "view:daw") hub->openCatalogSong(path);
+}
+void WorkspaceShell::promptTask()
+{
+    if (!flushEdits()) return;
+    auto* dialog = new juce::AlertWindow(text("Новая задача"), {}, juce::MessageBoxIconType::NoIcon, this);
+    dialog->addTextEditor("name", {}, text("Название"));
+    std::vector<juce::String> owners;
+    juce::StringArray labels;
+    for (const auto& row : arranger::WorkspaceQueries::activePages(model))
+    {
+        owners.push_back(row.id); labels.add(arranger::WorkspaceQueries::breadcrumb(model, row.id));
+    }
+    if (owners.empty()) { delete dialog; report(juce::Result::fail(text("Сначала создайте обычную страницу."))); return; }
+    dialog->addComboBox("owner", labels, text("Страница"));
+    int selected = 1;
+    for (int i = 0; i < static_cast<int>(owners.size()); ++i) if (owners[static_cast<size_t>(i)] == selectedPage()) selected = i + 1;
+    dialog->getComboBoxComponent("owner")->setSelectedId(selected);
+    dialog->addButton(text("Создать"), 1, juce::KeyPress(juce::KeyPress::returnKey));
+    dialog->addButton(text("Отмена"), 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    juce::Component::SafePointer<WorkspaceShell> safe(this);
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create([safe, dialog, owners](int choice)
+    {
+        if (safe == nullptr || choice != 1) return;
+        const int index = dialog->getComboBoxComponent("owner")->getSelectedId() - 1;
+        if (index < 0 || index >= static_cast<int>(owners.size())) return;
+        const auto name = dialog->getTextEditorContents("name"); juce::String created;
+        if (safe->execute([&](arranger::WorkspaceCommands& cmd)
+            { return cmd.createTask(owners[static_cast<size_t>(index)], name, created); })) safe->select("task:" + created);
+    }), true);
 }
 
 int WorkspaceShell::NavModel::getNumRows() { return static_cast<int>(owner.navigation.size()); }
@@ -345,12 +430,17 @@ void WorkspaceShell::TaskModel::paintListBoxItem(int index, juce::Graphics& g, i
 {
     if (index < 0 || index >= getNumRows()) return;
     const auto& ref = owner.taskReferences[static_cast<size_t>(index)];
-    const auto* task = arranger::WorkspaceQueries::task(owner.model, ref);
-    if (task == nullptr) return;
     rowBackground(g, width, height, selected);
-    g.drawText(juce::String(arranger::label(task->status)) + "  |  " + task->name, 12, 2, width - 24, 26, juce::Justification::centredLeft, true);
-    g.setColour(juce::Colour(0xffa9bbce));
-    g.setFont(juce::FontOptions(13.0f));
+    auto caption = juce::String(arranger::label(arranger::WorkspaceQueries::taskStatus(owner.model, ref))) + "  |  ";
+    if (const auto* task = arranger::WorkspaceQueries::generalTask(owner.model, ref))
+    {
+        const auto progress = arranger::WorkspaceQueries::taskProgress(*task);
+        caption += "P" + juce::String(task->properties.priority) + "  |  " + task->properties.name
+            + "  [" + juce::String(progress.first) + "/" + juce::String(progress.second) + "]";
+    }
+    else caption += arranger::WorkspaceQueries::taskName(owner.model, ref);
+    g.drawText(caption, 12, 2, width - 24, 26, juce::Justification::centredLeft, true);
+    g.setColour(juce::Colour(0xffa9bbce)); g.setFont(juce::FontOptions(13.0f));
     g.drawText(arranger::WorkspaceQueries::breadcrumb(owner.model, ref.ownerPageId), 12, 29, width - 24, height - 30, juce::Justification::centredLeft, true);
 }
 void WorkspaceShell::TaskModel::listBoxItemDoubleClicked(int index, const juce::MouseEvent&) { owner.openTask(index); }
@@ -360,12 +450,20 @@ void WorkspaceShell::ArchiveModel::paintListBoxItem(int index, juce::Graphics& g
     if (index < 0 || index >= getNumRows()) return;
     rowBackground(g, width, height, selected);
     const auto id = owner.archived[static_cast<size_t>(index)];
-    const auto* page = owner.model.findPage(id);
-    if (page == nullptr) return;
-    g.drawText(page->title, 12, 2, width - 24, 26, juce::Justification::centredLeft, true);
-    g.setColour(juce::Colour(0xffa9bbce));
-    g.setFont(juce::FontOptions(13.0f));
-    g.drawText(arranger::WorkspaceQueries::breadcrumb(owner.model, id), 12, 29, width - 24, height - 30, juce::Justification::centredLeft, true);
+    juce::String title, ownerId;
+    if (id.startsWith("task:"))
+    {
+        const auto* task = owner.model.findTask(id.substring(5)); if (!task) return;
+        title = text("Задача: ") + task->properties.name; ownerId = task->ownerPageId;
+    }
+    else
+    {
+        const auto* page = owner.model.findPage(id); if (!page) return;
+        title = text("Страница: ") + page->title; ownerId = page->id;
+    }
+    g.drawText(title, 12, 2, width - 24, 26, juce::Justification::centredLeft, true);
+    g.setColour(juce::Colour(0xffa9bbce)); g.setFont(juce::FontOptions(13.0f));
+    g.drawText(arranger::WorkspaceQueries::breadcrumb(owner.model, ownerId), 12, 29, width - 24, height - 30, juce::Justification::centredLeft, true);
 }
 void WorkspaceShell::ArchiveModel::selectedRowsChanged(int index)
 {
@@ -375,4 +473,5 @@ void WorkspaceShell::ArchiveModel::selectedRowsChanged(int index)
 void WorkspaceShell::TaskModel::selectedRowsChanged(int index)
 {
     owner.openSource.setEnabled(index >= 0 && index < getNumRows());
+    if (index >= 0 && index < getNumRows()) owner.openSource.setButtonText(owner.taskReferences[static_cast<size_t>(index)].songId.isEmpty() ? text("Открыть задачу") : text("Открыть песню"));
 }

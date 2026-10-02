@@ -1,10 +1,10 @@
 # Arranger Manager
 
-Рабочее пространство для музыкальных и обычных проектов: задачи и страницы, план дня, календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. **Принятая версия — 0.1f: ядро рабочего пространства, страницы и DAW-органайзер для Fender Studio Pro.** Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
+Рабочее пространство для музыкальных и обычных проектов: задачи и страницы, план дня, календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. **Принятая версия — 0.1g: ядро рабочего пространства, страницы и DAW-органайзер для Fender Studio Pro.** Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
 
-## Текущее состояние — принятая 0.1g
+## Текущее состояние — принятая 0.1g; кандидат 0.1h
 
-0.1g принята пользователем 2026-10-02 и слита в main через PR #45. Windows Build #67 успешна, 6/6 тестовых наборов пройдены. Следующая работа — 0.1h: общие задачи и страницы задач.
+0.1g принята пользователем 2026-10-02 и слита в main через PR #45. Windows Build #67 успешна, 6/6 тестовых наборов пройдены. 0.1h реализуется в workspace-0-1h-general-tasks: задачи обычных страниц, свойства P1–P4/Notes/статус, чек-поинты, подробные описания и восстановление. [Проверка 0.1h](docs/HYBRID-0.1h.md); CI и пользовательская приёмка — в PR. Workspace schema 2 с точной копией schema 1 при миграции.
 
 Ядро, навигация, архив страниц и блочный редактор реализованы. [HANDOFF](docs/HANDOFF.md) · [ROADMAP](docs/ROADMAP.md) · [Проверка 0.1g](docs/HYBRID-0.1g.md).
 
@@ -31,7 +31,7 @@
 | 0.6 | Сбор и обзор аналитики соцсетей | [#41](https://github.com/vladleng/Arranger-Manager/issues/41) |
 | 0.7 | Интеграция с ChatGPT | [#42](https://github.com/vladleng/Arranger-Manager/issues/42) |
 
-Все строки — плановые выпуски; 0.1e/0.1f приняты, 0.1g — кандидат редактора, 0.1h и далее не начаты. Единые задачи отображаются на страницах, в Сегодня, календаре и Timeline; .song остаётся только для чтения. В кандидате 0.1e выбран отдельный версионированный JSON и JUCE для этапа 1; первые соцсети и способ GPT-интеграции проверяются перед соответствующим подэтапом. Телефон остаётся отложенным.
+Все строки — плановые выпуски; 0.1e/0.1f приняты, 0.1g принята, 0.1h — кандидат общих задач, 0.1i и далее не начаты. Единые задачи отображаются на страницах, в Сегодня, календаре и Timeline; .song остаётся только для чтения. В кандидате 0.1e выбран отдельный версионированный JSON и JUCE для этапа 1; первые соцсети и способ GPT-интеграции проверяются перед соответствующим подэтапом. Телефон остаётся отложенным.
 
 [Общий план #36](https://github.com/vladleng/Arranger-Manager/issues/36) · [Подэтапы и приёмка](docs/ROADMAP.md) · [Модель рабочего пространства](docs/WORKSPACE-ARCHITECTURE.md)
 
@@ -41,11 +41,11 @@
 
 ```sh
 cmake -S . -B build
-cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests BlockEditorTests --parallel 2
+cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests BlockEditorTests GeneralTaskTests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CI создаёт архив `Arranger-Manager-0.1g-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b, fix1, 0.1c и 0.1d проверены пользователем. Windows Build #50 для 0.1d прошёл.
+CI создаёт архив `Arranger-Manager-0.1h-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b, fix1, 0.1c и 0.1d проверены пользователем. Windows Build #50 для 0.1d прошёл.
 
 ## Как читать документы
 
