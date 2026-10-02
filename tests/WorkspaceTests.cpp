@@ -75,7 +75,9 @@ int main()
         || !check(restart.backupFile().loadFileAsString() == initial, "Previous saved state was not backed up")) return 1;
     WorkspaceModel roundTrip;
     if (!check(WorkspaceModel::fromJson(file.loadFileAsString(), roundTrip).wasOk(), "Workspace round-trip failed")
-        || !check(roundTrip.catalog.localNote(roundTrip.catalog.songs[0].path, "song")\n            == juce::String::fromUTF8("Аранжировка — проверить куплет"), "UTF-8 Notes lost")\n        || !check(roundTrip.pages.back().blocks[2].checked, "Checklist state lost")
+        || !check(roundTrip.catalog.localNote(roundTrip.catalog.songs[0].path, "song")
+            == juce::String::fromUTF8("Аранжировка — проверить куплет"), "UTF-8 Notes lost")
+        || !check(roundTrip.pages.back().blocks[2].checked, "Checklist state lost")
         || !check(roundTrip.pages.back().blocks[3].url == "https://example.com", "Link lost")
         || !check(roundTrip.catalog.songs[0].tasks[1].id == "task-mix", "Task order lost")) return 1;
     SongSnapshot snapshot;
