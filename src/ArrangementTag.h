@@ -1,0 +1,154 @@
+#pragma once
+
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <string_view>
+
+namespace arranger
+{
+enum class Status { unmarked, pool, todo, wip, draft, wait, done, blocked };
+enum class Priority { none, p1, p2, p3, p4 };
+
+struct Tag
+{
+    Status status = Status::unmarked;
+    Priority priority = Priority::none;
+    std::string title;
+    std::string note;
+    bool valid = false;
+};
+
+struct TrackNameTag
+{
+    Status status = Status::unmarked;
+    std::string name;
+};
+
+inline std::string trim(std::string_view text)
+{
+    const auto first = text.find_first_not_of(" \t\r\n");
+    if (first == std::string_view::npos) return {};
+    const auto last = text.find_last_not_of(" \t\r\n");
+    return std::string(text.substr(first, last - first + 1));
+}
+
+inline std::string upper(std::string text)
+{
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return text;
+}
+
+inline Status parseStatus(std::string_view text)
+{
+    const auto code = upper(trim(text));
+    if (code == "POOL") return Status::pool;
+    if (code == "TODO") return Status::todo;
+    if (code == "WIP") return Status::wip;
+    if (code == "DRAFT") return Status::draft;
+    if (code == "WAIT" || code == "REVIEW") return Status::wait; // Preserve older project names.
+    if (code == "DONE") return Status::done;
+    if (code == "BLOCKED") return Status::blocked;
+    return Status::unmarked;
+}
+
+inline Priority parsePriority(std::string_view text)
+{
+    const auto code = upper(trim(text));
+    if (code == "P1") return Priority::p1;
+    if (code == "P2") return Priority::p2;
+    if (code == "P3") return Priority::p3;
+    if (code == "P4") return Priority::p4;
+    return Priority::none;
+}
+
+inline const char* label(Status status)
+{
+    switch (status)
+    {
+        case Status::pool: return "POOL";
+        case Status::todo: return "TODO";
+        case Status::wip: return "WIP";
+        case Status::draft: return "DRAFT";
+        case Status::wait: return "WAIT";
+        case Status::done: return "DONE";
+        case Status::blocked: return "BLOCKED";
+        default: return "UNMARKED";
+    }
+}
+
+inline const char* label(Priority priority)
+{
+    switch (priority)
+    {
+        case Priority::p1: return "P1";
+        case Priority::p2: return "P2";
+        case Priority::p3: return "P3";
+        case Priority::p4: return "P4";
+        default: return "--";
+    }
+}
+
+// Clip names use STATUS | title | optional note. Older STATUS | P1 | note
+// names remain readable, but the embedded priority is not shown in the project view.
+// Legacy GROUP:STATUS remains readable.
+// Unknown names are ordinary DAW events and are not counted as arrangement tags.
+inline Tag parse(std::string_view name)
+{
+    Tag result;
+    const auto pipe = name.find('|');
+    if (pipe == std::string_view::npos)
+    {
+        result.status = parseStatus(name);
+        if (result.status != Status::unmarked)
+        {
+            result.valid = true;
+            return result;
+        }
+
+        const auto colon = name.rfind(':');
+        if (colon == std::string_view::npos || colon == 0) return result;
+        result.status = parseStatus(name.substr(colon + 1));
+        result.valid = result.status != Status::unmarked;
+        return result;
+    }
+
+    result.status = parseStatus(name.substr(0, pipe));
+    if (result.status == Status::unmarked) return result;
+
+    const auto second = name.find('|', pipe + 1);
+    const auto first = trim(name.substr(pipe + 1, second == std::string_view::npos ? second : second - pipe - 1));
+    result.priority = parsePriority(first);
+    if (result.priority != Priority::none)
+    {
+        if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
+    }
+    else
+    {
+        const auto candidate = upper(first);
+        if (candidate.size() >= 2 && candidate[0] == 'P' && std::isdigit(static_cast<unsigned char>(candidate[1]))) return {};
+        result.title = first;
+        if (second != std::string_view::npos) result.note = trim(name.substr(second + 1));
+    }
+    result.valid = true;
+    return result;
+}
+
+// A managed track is named STATUS | track name (or just STATUS).
+// An ordinary track name is never interpreted by scanning for status words.
+inline TrackNameTag parseTrackName(std::string_view text)
+{
+    const auto separator = text.find('|');
+    const auto status = parseStatus(text.substr(0, separator));
+    if (status == Status::unmarked) return {status, trim(text)};
+    return {status, separator == std::string_view::npos ? std::string() : trim(text.substr(separator + 1))};
+}
+
+// UI title only; keep the original event name intact in Studio Pro.
+inline std::string displayClipName(std::string_view name, std::string_view fallback)
+{
+    const auto tag = parse(name);
+    if (!tag.valid) return trim(name);
+    return tag.title.empty() ? std::string(fallback) : tag.title;
+}
+}

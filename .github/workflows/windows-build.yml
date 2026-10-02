@@ -1,0 +1,28 @@
+name: Windows App and Hub Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build
+      - name: Build
+        run: cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests --parallel 2
+      - name: Test project reader and name parser
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1d" | Out-Null
+          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1d"
+          Copy-Item -Force "docs/HYBRID-0.1d.md" "package/Arranger Manager 0.1d"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arranger-Manager-0.1d-Windows-App
+          path: package
