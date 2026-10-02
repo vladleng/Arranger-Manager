@@ -19,9 +19,10 @@ let blocks=[{id:crypto.randomUUID(),type:"heading",text:"Editor prototype",url:"
 {id:crypto.randomUUID(),type:"text",text:"Try text, lists, checkboxes and links.",url:"",checked:false}];
 try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved)&&saved.every(b=>typeof b.id==="string"&&["text","heading","list","checklist","link"].includes(b.type)))blocks=saved}catch{}
 const history=[],future=[];
+const statusEl=document.getElementById("status");
 const copy=()=>JSON.parse(JSON.stringify(blocks));
 function remember(){history.push(copy());if(history.length>100)history.shift();future.length=0}
-function persist(){try{localStorage.setItem(key,JSON.stringify(blocks));status.textContent="Prototype fixture saved in this browser."}catch{status.textContent="Browser storage unavailable; fixture remains in memory."}}
+function persist(){try{localStorage.setItem(key,JSON.stringify(blocks));statusEl.textContent="Prototype fixture saved in this browser."}catch{statusEl.textContent="Browser storage unavailable; fixture remains in memory."}}
 function render(){
  const host=document.getElementById("blocks");host.replaceChildren();
  blocks.forEach((b,index)=>{

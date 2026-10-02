@@ -37,7 +37,6 @@ int main()
     if (!check(WorkspaceModel::migrateLegacy(legacy, model).wasOk(), "Migration failed")) return 1;
     const auto songId = model.catalog.songs[0].id;
     const auto songPageId = model.catalog.songs[0].pageId;
-    const auto workspaceId = model.id;
     if (!check(songId.isNotEmpty() && songPageId.isNotEmpty(), "Song IDs were not assigned")
         || !check(model.catalog.songs[0].tasks[0].id == "task-harmony", "Task identity changed")
         || !check(model.catalog.songs[0].tasks[0].checkpoints[1].id == "cp-chorus", "Checkpoint order changed")
@@ -65,6 +64,7 @@ int main()
     if (!check(reopened.catalog.relinkSong(persistedSongId, "D:\\Moved\\First.song"), "Relink failed")
         || !check(reopened.catalog.songs[0].id == persistedSongId, "Relink changed song ID")
         || !check(!reopened.catalog.relinkSong(persistedSongId, "C:\\Songs\\Second.song"), "Duplicate relink accepted")) return 1;
+    reopened.catalog.setLocalNote(reopened.catalog.songs[0].path, "song", juce::String::fromUTF8("Аранжировка — проверить куплет"));
     reopened.pages.push_back({"prototype-page", {}, "Prototype", "page", {}, {
         {"block-heading", "heading", "Heading", {}, false},
         {"block-list", "list", "First\nSecond", {}, false},
@@ -75,7 +75,7 @@ int main()
         || !check(restart.backupFile().loadFileAsString() == initial, "Previous saved state was not backed up")) return 1;
     WorkspaceModel roundTrip;
     if (!check(WorkspaceModel::fromJson(file.loadFileAsString(), roundTrip).wasOk(), "Workspace round-trip failed")
-        || !check(roundTrip.pages.back().blocks[2].checked, "Checklist state lost")
+        || !check(roundTrip.catalog.localNote(roundTrip.catalog.songs[0].path, "song")\n            == juce::String::fromUTF8("Аранжировка — проверить куплет"), "UTF-8 Notes lost")\n        || !check(roundTrip.pages.back().blocks[2].checked, "Checklist state lost")
         || !check(roundTrip.pages.back().blocks[3].url == "https://example.com", "Link lost")
         || !check(roundTrip.catalog.songs[0].tasks[1].id == "task-mix", "Task order lost")) return 1;
     SongSnapshot snapshot;
@@ -139,5 +139,14 @@ int main()
     WorkspaceStore fresh(directory.path.getChildFile("fresh.json"));
     if (!check(fresh.load({}, "C:\\Songs\\Fallback.song", unchanged).wasOk(), "Empty-settings fallback failed")
         || !check(unchanged.catalog.songs.size() == 1, "Last project was not migrated")) return 1;
+    const auto safe = directory.path.getChildFile("backup-blocked.json");
+    WorkspaceStore blockedBackup(safe);
+    if (!check(blockedBackup.load({}, {}, unchanged).wasOk(), "Backup-failure setup failed")) return 1;
+    const auto safeText = safe.loadFileAsString();
+    blockedBackup.backupFile().deleteFile();
+    blockedBackup.backupFile().createDirectory();
+    unchanged.name = "Unsaved change";
+    if (!check(blockedBackup.save(unchanged).failed(), "Blocked backup did not prevent save")
+        || !check(safe.loadFileAsString() == safeText, "Backup failure replaced main document")) return 1;
     return 0;
 }

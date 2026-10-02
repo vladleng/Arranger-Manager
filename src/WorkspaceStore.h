@@ -94,8 +94,8 @@ public:
         {
             const auto preserved = file.getSiblingFile(file.getFileName() + ".before-restore-"
                 + juce::Uuid().toString() + ".json");
-            result = atomicWrite(preserved, file.loadFileAsString());
-            if (result.failed()) return result;
+            if (!file.copyFileTo(preserved))
+                return juce::Result::fail("Cannot preserve current file before recovery.");
         }
         result = atomicWrite(file, text);
         if (result.wasOk()) { loaded = false; lastSaved.clear(); }

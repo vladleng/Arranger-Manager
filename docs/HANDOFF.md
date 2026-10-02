@@ -1,5 +1,20 @@
 # Arranger Manager — передача контекста
 
+## Активная разработка 0.1e (2026-10-02)
+
+Принятая база — 0.1d в `main`; её Windows Build #56 успешна. Кандидат 0.1e: ветка `workspace-0-1e-storage-migration`, [PR #43](https://github.com/vladleng/Arranger-Manager/pull/43), issue #37. Код 0.1e написан; Windows CI и пользовательская приёмка ещё проверяются. Подэтап не закрывать до приёмки.
+
+- WorkspaceModel.h: workspace schema 1, ID пространства/песен/страниц/блоков, каталог schema 2, проверка связей/циклов/дублей. Задачи и чек-поинты остаются в одном каталоге с прежними ID.
+- WorkspaceStore.h: отдельный JSON рядом с .settings, точная legacy-v1 backup, предыдущий документ в .backup, запись через временный файл и replacement, проверка внешних изменений, явное восстановление.
+- Старый `songCatalog` не изменяется после миграции. При возврате к 0.1d изменения 0.1e не появятся в старой версии; исходные данные 0.1d сохранены.
+- HubApplication: меню Workspace (информация/прототип/восстановление), CLI `--restore-workspace-backup`; повреждённая/новая схема не запускает пустой каталог.
+- WorkspacePrototype.h и prototypes/editor-web.html: контрольные редакторы для выбора UI. Native подключён к отдельной странице workspace; web — независимый пример. Решение: JUCE для 0.2, версионированный JSON для нынешнего объёма; SQLite пересмотреть до аналитики.
+- WorkspaceTests: миграция, перезапуск без дублей, прежние ID/Notes/PROG, relink модели, блоки, ошибки и восстановление. Windows CI собирает четыре тестовых target и пакет 0.1e.
+- Приёмка: [HYBRID-0.1e](HYBRID-0.1e.md); решения/ограничения: [WORKSPACE-0.1e-DECISIONS](WORKSPACE-0.1e-DECISIONS.md).
+
+0.1f/0.1g/0.1h не реализованы. UI повторного связывания файла — 0.1i; текущий relinkSong проверяется на уровне модели. Для доработок 0.1e использовать её ветку; после приёмки следующий подэтап — 0.1f. Ниже сохранён контекст принятой 0.1d до этой разработки.
+
+
 **Срез на 2026-10-02:** база 0.1 fix4 принята; запись `.song` отложена, PR #28 закрыт без слияния. Пользователь подтвердил работу 0.1b, fix1, 0.1c и 0.1d; issues #29, #31, #33 закрыты. Fix1 находится в PR #30, 0.1c — в PR #32 поверх него, 0.1d — в PR #34 поверх PR #32. Начните с [README](../README.md), затем с этого файла. [CONCEPT](CONCEPT.md) фиксирует действующие решения, [ROADMAP](ROADMAP.md) — следующие этапы. Документы версий `HUB-0.0*.md` и ARA относятся к истории; изменения кода и состояние Issues/PR нужно проверить в GitHub перед началом новой работы.
 
 ## Новое задание и границы этого изменения
@@ -78,7 +93,7 @@ Reader сохраняет `FolderTrack` и `parentFolder` из плоского 
 
 ```sh
 cmake -S . -B build
-cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests --parallel 2
+cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 

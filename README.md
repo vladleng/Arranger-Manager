@@ -2,7 +2,9 @@
 
 Рабочее пространство для музыкальных и обычных проектов: задачи и страницы, план дня, календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. **Новое направление оформлено в плане; реализованная версия сейчас — DAW-органайзер 0.1d для Fender Studio Pro.** Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
 
-## Текущее состояние — 0.1d на основе 0.1 fix4
+## Текущее состояние — принятая 0.1d; кандидат 0.1e
+
+**Разработка 0.1e:** ветка `workspace-0-1e-storage-migration`, [PR #43](https://github.com/vladleng/Arranger-Manager/pull/43) от `main`. Реализованы ID пространства/песен/страниц/блоков, отдельный workspace schema 1, миграция songCatalog v1, резервирование/восстановление и два прототипа редактора. Windows CI и пользовательская приёмка отслеживаются в PR; 0.1e пока не принята. Проверка: [HYBRID-0.1e](docs/HYBRID-0.1e.md), решения: [WORKSPACE-0.1e-DECISIONS](docs/WORKSPACE-0.1e-DECISIONS.md). Боковая панель, полноценный редактор и общие задачи относятся к 0.1f–0.1h.
 
 **Для продолжения разработки:** актуальный код и документы находятся в `main`: принятая 0.1d слита через [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34) 2026-10-02. Начните с [HANDOFF](docs/HANDOFF.md). 0.1d принята пользователем; следующий подэтап — 0.1e: ядро и миграция данных. Новый этап заканчивается 0.2 со страницами и общими задачами; далее запланированы 0.3–0.7. Мобильная версия и синхронизация отложены на будущее ([#35](https://github.com/vladleng/Arranger-Manager/issues/35)).
 
@@ -29,7 +31,7 @@
 | 0.6 | Сбор и обзор аналитики соцсетей | [#41](https://github.com/vladleng/Arranger-Manager/issues/41) |
 | 0.7 | Интеграция с ChatGPT | [#42](https://github.com/vladleng/Arranger-Manager/issues/42) |
 
-Все строки — будущая работа, реализация не начата. Единые задачи отображаются на страницах, в Сегодня, календаре и Timeline; .song остаётся только для чтения. Технология хранилища, первые соцсети и способ GPT-интеграции проверяются перед соответствующим подэтапом. Телефон остаётся отложенным.
+Все строки — плановые выпуски; фундамент этапа 1 реализуется в 0.1e (PR #43), остальные подэтапы не начаты. Единые задачи отображаются на страницах, в Сегодня, календаре и Timeline; .song остаётся только для чтения. В кандидате 0.1e выбран отдельный версионированный JSON и JUCE для этапа 1; первые соцсети и способ GPT-интеграции проверяются перед соответствующим подэтапом. Телефон остаётся отложенным.
 
 [Общий план #36](https://github.com/vladleng/Arranger-Manager/issues/36) · [Подэтапы и приёмка](docs/ROADMAP.md) · [Модель рабочего пространства](docs/WORKSPACE-ARCHITECTURE.md)
 
@@ -39,7 +41,7 @@
 
 ```sh
 cmake -S . -B build
-cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests --parallel 2
+cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 
