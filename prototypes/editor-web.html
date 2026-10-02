@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Arranger Manager — web editor spike</title>
+<style>
+*{box-sizing:border-box}body{background:#1d232b;color:#e8edf3;font:16px system-ui;max-width:850px;margin:30px auto;padding:16px}
+button,select,input,textarea{font:inherit;color:inherit;background:#293340;border:1px solid #53637a;border-radius:6px;padding:8px}
+nav{display:flex;gap:8px;flex-wrap:wrap}.block{margin:14px 0;border:1px solid #53637a;border-radius:8px;padding:12px}
+textarea{display:block;width:100%;min-height:75px;margin-top:8px}input[type=url]{width:100%;margin-top:8px}.heading{font-size:24px}
+small{color:#b4c4d5}label{display:block}.block button{float:right}
+</style>
+<h1>Web editor prototype</h1>
+<p>This is a standalone UI comparison fixture. It does not read or modify your workspace, songs or tasks.</p>
+<nav><select id="type"><option value="text">Text</option><option value="heading">Heading</option>
+<option value="list">List</option><option value="checklist">Checklist</option><option value="link">Link</option></select>
+<button id="add">Add block</button><button id="undo">Undo</button><button id="redo">Redo</button></nav>
+<div id="blocks"></div><small id="status"></small>
+<script>
+const key="arranger-editor-spike-v1";
+let blocks=[{id:crypto.randomUUID(),type:"heading",text:"Editor prototype",url:"",checked:false},
+{id:crypto.randomUUID(),type:"text",text:"Try text, lists, checkboxes and links.",url:"",checked:false}];
+try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved)&&saved.every(b=>typeof b.id==="string"&&["text","heading","list","checklist","link"].includes(b.type)))blocks=saved}catch{}
+const history=[],future=[];
+const copy=()=>JSON.parse(JSON.stringify(blocks));
+function remember(){history.push(copy());if(history.length>100)history.shift();future.length=0}
+function persist(){try{localStorage.setItem(key,JSON.stringify(blocks));status.textContent="Prototype fixture saved in this browser."}catch{status.textContent="Browser storage unavailable; fixture remains in memory."}}
+function render(){
+ const host=document.getElementById("blocks");host.replaceChildren();
+ blocks.forEach((b,index)=>{
+ const row=document.createElement("section");row.className="block";
+ const name=document.createElement("label");name.textContent=b.type;row.append(name);
+ [-1,1].forEach(direction=>{const btn=document.createElement("button");btn.textContent=direction<0?"Up":"Down";
+ btn.disabled=index+direction<0||index+direction>=blocks.length;
+ btn.onclick=()=>{remember();[blocks[index],blocks[index+direction]]=[blocks[index+direction],blocks[index]];persist();render()};row.append(btn)});
+ const text=document.createElement("textarea");text.className=b.type==="heading"?"heading":"";text.value=b.text;
+ text.oninput=()=>{remember();b.text=text.value;persist()};row.append(text);
+ if(b.type==="checklist"){const check=document.createElement("input");check.type="checkbox";check.checked=b.checked;
+ check.onchange=()=>{remember();b.checked=check.checked;persist()};row.append(check)}
+ if(b.type==="link"){const url=document.createElement("input");url.type="url";url.value=b.url;url.placeholder="https://...";
+ url.oninput=()=>{remember();b.url=url.value;persist()};row.append(url)}
+ host.append(row);
+ });
+}
+document.getElementById("add").onclick=()=>{remember();blocks.push({id:crypto.randomUUID(),type:document.getElementById("type").value,text:"",url:"",checked:false});persist();render()};
+document.getElementById("undo").onclick=()=>{if(history.length){future.push(copy());blocks=history.pop();persist();render()}};
+document.getElementById("redo").onclick=()=>{if(future.length){history.push(copy());blocks=future.pop();persist();render()}};
+render();
+</script></html>

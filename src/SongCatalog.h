@@ -52,6 +52,7 @@ struct CatalogSong
     std::vector<CatalogTask> tasks;
     std::vector<CatalogNote> localNotes;
     SongType type = SongType::unspecified;
+    juce::String id, pageId; // Identity survives path changes (workspace schema 1).
 };
 
 class SongCatalog
@@ -170,6 +171,21 @@ public:
         return nullptr;
     }
 
+    CatalogSong* findSongById(const juce::String& id)
+    {
+        for (auto& song : songs) if (song.id == id) return &song;
+        return nullptr;
+    }
+
+    bool relinkSong(const juce::String& id, const juce::String& newPath)
+    {
+        auto* song = findSongById(id);
+        if (song == nullptr || newPath.isEmpty() || !juce::File(newPath).hasFileExtension("song")) return false;
+        if (const auto* existing = findSong(newPath); existing != nullptr && existing != song) return false;
+        song->path = newPath;
+        return true;
+    }
+
     juce::String addTask(const juce::String& path, juce::String name)
     {
         name = name.trim();
@@ -266,6 +282,8 @@ public:
         for (const auto& song : songs)
             if (song.path.equalsIgnoreCase(path)) return false;
         songs.push_back({std::move(path), folderId});
+        songs.back().id = juce::Uuid().toString();
+        songs.back().pageId = juce::Uuid().toString();
         return true;
     }
 
@@ -304,7 +322,7 @@ public:
     juce::String toJson() const
     {
         auto root = std::make_unique<juce::DynamicObject>();
-        root->setProperty("version", 1);
+        root->setProperty("version", 2);
         juce::Array<juce::var> folderArray, songArray;
         for (const auto& folder : folders)
         {
@@ -316,6 +334,8 @@ public:
         for (const auto& song : songs)
         {
             auto item = std::make_unique<juce::DynamicObject>();
+            item->setProperty("id", song.id);
+            item->setProperty("pageId", song.pageId);
             item->setProperty("path", song.path);
             item->setProperty("folderId", song.folderId);
             item->setProperty("status", label(song.status));
@@ -360,7 +380,8 @@ public:
     {
         SongCatalog catalog;
         const auto root = juce::JSON::parse(text);
-        if (!root.isObject() || static_cast<int>(root.getProperty("version", 0)) != 1) return catalog;
+        const auto version = static_cast<int>(root.getProperty("version", 0));
+        if (!root.isObject() || (version != 1 && version != 2)) return catalog;
         const auto folderList = root.getProperty("folders", {});
         if (const auto* array = folderList.getArray())
             for (const auto& item : *array)
@@ -381,6 +402,11 @@ public:
                 if (!catalog.validFolder(folderId)) folderId.clear();
                 if (catalog.addSong(path, folderId))
                 {
+                    if (version == 2)
+                    {
+                        catalog.songs.back().id = item.getProperty("id", {}).toString();
+                        catalog.songs.back().pageId = item.getProperty("pageId", {}).toString();
+                    }
                     catalog.setSongStatus(path, parseStatus(item.getProperty("status", {}).toString().toStdString()));
                     catalog.setSongType(path, parseSongType(item.getProperty("songType", {}).toString()));
                     const auto notesList = item.getProperty("localNotes", {});
