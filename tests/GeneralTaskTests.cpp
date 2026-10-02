@@ -28,7 +28,7 @@ int main()
     auto v1 = juce::JSON::parse(old.toJson());
     v1.getDynamicObject()->setProperty("schemaVersion", 1); v1.getDynamicObject()->removeProperty("tasks");
     const auto source = juce::JSON::toString(v1) + "\n";
-    REQUIRE(file.replaceWithText(source), "Write schema 1 fixture");
+    REQUIRE(file.replaceWithData(source.toRawUTF8(), static_cast<size_t>(source.getNumBytesAsUTF8())), "Write schema 1 fixture");
     WorkspaceStore store(file); WorkspaceModel model;
     REQUIRE(store.load("invalid stale settings", {}, model).wasOk(), "Schema 1 migration");
     REQUIRE(store.schemaOneFile().loadFileAsString() == source && store.backupFile().loadFileAsString() == source, "Exact schema 1 backup");
@@ -106,9 +106,20 @@ int main()
     auto missingTasks = juce::JSON::parse(model.toJson()); missingTasks.getDynamicObject()->removeProperty("tasks");
     WorkspaceModel sentinel; sentinel.id = "sentinel";
     REQUIRE(WorkspaceModel::fromJson(juce::JSON::toString(missingTasks), sentinel).failed() && sentinel.id == "sentinel", "Schema 2 missing tasks accepted");
+    // Preserve a schema 1 source byte-for-byte even with a UTF-8 BOM.
+    const auto bomFile = dir.path.getChildFile("bom-workspace.json");
+    const unsigned char bom[] = {0xef, 0xbb, 0xbf};
+    REQUIRE(bomFile.replaceWithData(bom, sizeof(bom))
+        && bomFile.appendData(source.toRawUTF8(), static_cast<size_t>(source.getNumBytesAsUTF8())), "BOM fixture");
+    juce::MemoryBlock originalBytes, backupBytes;
+    REQUIRE(bomFile.loadFileAsData(originalBytes), "Read BOM bytes");
+    WorkspaceStore bomStore(bomFile); WorkspaceModel bomModel;
+    REQUIRE(bomStore.load({}, {}, bomModel).wasOk()
+        && bomStore.schemaOneFile().loadFileAsData(backupBytes) && originalBytes == backupBytes, "Migration backup changed source bytes");
+
     // An unwritable migration backup must preserve the source exactly.
     const auto blockedFile = dir.path.getChildFile("blocked-migration.json");
-    REQUIRE(blockedFile.replaceWithText(source), "Blocked fixture");
+    REQUIRE(blockedFile.replaceWithData(source.toRawUTF8(), static_cast<size_t>(source.getNumBytesAsUTF8())), "Blocked fixture");
     WorkspaceStore blocked(blockedFile); blocked.schemaOneFile().createDirectory();
     REQUIRE(blocked.load({}, {}, sentinel).failed() && blockedFile.loadFileAsString() == source, "Migration backup failure overwrote schema 1");
     std::cout << "General tasks, description, archives, migration and persistence passed\n";

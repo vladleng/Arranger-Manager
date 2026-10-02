@@ -26,11 +26,11 @@ public:
             if (version == 1)
             {
                 auto backup = schemaOneFile();
-                if (backup.existsAsFile() && backup.loadFileAsString() != text)
+                if (backup.existsAsFile() && !backup.hasIdenticalContentTo(file))
                     backup = file.getSiblingFile(file.getFileName() + ".schema-1-" + juce::Uuid().toString() + ".json");
                 if (!backup.existsAsFile())
                 {
-                    const auto preserved = atomicWrite(backup, text);
+                    const auto preserved = atomicCopy(file, backup);
                     if (preserved.failed()) return preserved;
                 }
             }
@@ -121,6 +121,18 @@ public:
     }
 
 private:
+    static juce::Result atomicCopy(const juce::File& source, const juce::File& target)
+    {
+        const auto directory = target.getParentDirectory().createDirectory();
+        if (directory.failed()) return directory;
+        juce::TemporaryFile temporary(target);
+        if (!source.copyFileTo(temporary.getFile()) || !source.hasIdenticalContentTo(temporary.getFile()))
+            return juce::Result::fail("Cannot preserve the exact schema 1 file.");
+        if (!temporary.overwriteTargetFileWithTemporary())
+            return juce::Result::fail("Cannot replace the schema 1 backup.");
+        return juce::Result::ok();
+    }
+
     static juce::Result atomicWrite(const juce::File& target, const juce::String& text)
     {
         const auto directory = target.getParentDirectory().createDirectory();
