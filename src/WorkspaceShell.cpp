@@ -41,12 +41,7 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
         list->setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff202832));
         list->setMultipleSelectionEnabled(false);
     }
-    addAndMakeVisible(pageBody);
-    pageBody.setReadOnly(true);
-    pageBody.setMultiLine(true);
-    pageBody.setFont(juce::FontOptions(17.0f));
-    pageBody.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff202832));
-    pageBody.setColour(juce::TextEditor::textColourId, juce::Colour(0xffdce6f1));
+    addAndMakeVisible(blockEditor);
     addAndMakeVisible(hub.get());
 
     addPage.onClick = [this] { promptPage({}); };
@@ -88,7 +83,7 @@ void WorkspaceShell::resized()
     content.removeFromTop(12);
     tasks.setBounds(content);
     archive.setBounds(content);
-    pageBody.setBounds(content);
+    blockEditor.setBounds(content);
     empty.setBounds(content.withHeight(80));
 }
 
@@ -136,6 +131,14 @@ void WorkspaceShell::refresh()
 
 void WorkspaceShell::select(const juce::String& key)
 {
+    if (!flushEdits())
+    {
+        rebuilding = true;
+        for (int i = 0; i < static_cast<int>(navigation.size()); ++i)
+            if (navigation[static_cast<size_t>(i)].key == viewKey) nav.selectRow(i);
+        rebuilding = false;
+        return;
+    }
     viewKey = key;
     refresh();
 }
@@ -157,7 +160,22 @@ void WorkspaceShell::showDetails()
     restore.setEnabled(archive.getSelectedRow() >= 0 && archive.getSelectedRow() < static_cast<int>(archived.size()));
     openSource.setVisible(allTasks);
     openSource.setEnabled(tasks.getSelectedRow() >= 0 && tasks.getSelectedRow() < static_cast<int>(taskReferences.size()));
-    pageBody.setVisible(ordinary && !page->blocks.empty());
+    blockEditor.setVisible(ordinary);
+    if (ordinary)
+    {
+        const auto pageId = page->id;
+        blockEditor.bind(pageId, [this, pageId]() -> std::optional<arranger::BlockEditorSession::Blocks>
+        {
+            const auto* current = model.findPage(pageId);
+            if (current == nullptr || current->kind != "page" || arranger::WorkspaceQueries::isArchived(model, pageId)) return {};
+            return current->blocks;
+        }, [this, pageId](const auto& expected, const auto& blocks)
+        {
+            return runCommand([&](arranger::WorkspaceCommands& commands)
+                { return commands.replacePageBlocks(pageId, expected, blocks); });
+        });
+    }
+    else blockEditor.bind({}, {}, {});
     empty.setVisible(false);
     if (allTasks)
     {
@@ -182,26 +200,23 @@ void WorkspaceShell::showDetails()
         for (const auto& item : model.pages)
             if (item.parentPageId == page->id && !arranger::WorkspaceQueries::isArchived(model, item.id)) ++children;
         description.setText(text("Вложенных страниц: ") + juce::String(children), juce::dontSendNotification);
-        juce::String body;
-        for (const auto& block : page->blocks)
-        {
-            if (block.type == "checklist") body += block.checked ? text("☑ ") : text("☐ ");
-            if (block.type == "list") body += text("• ");
-            body += block.text + "\n";
-            if (block.type == "link" && block.url.isNotEmpty()) body += block.url + "\n";
-            body += "\n";
-        }
-        pageBody.setText(body, false);
-        if (page->blocks.empty()) { empty.setText(text("Страница пока пустая. Создавайте вложенные страницы, чтобы организовать проект."), juce::dontSendNotification); empty.setVisible(true); }
+
     }
 }
 
 bool WorkspaceShell::execute(const arranger::WorkspaceAction& action)
 {
+    if (!flushEdits()) return false;
     const auto result = runCommand(action);
     if (result.failed()) { report(result); return false; }
     refresh();
     return true;
+}
+bool WorkspaceShell::flushEdits()
+{
+    const auto result = blockEditor.flush();
+    if (result.failed()) report(result);
+    return result.wasOk();
 }
 void WorkspaceShell::report(const juce::Result& result)
 {
@@ -211,6 +226,7 @@ void WorkspaceShell::report(const juce::Result& result)
 
 void WorkspaceShell::promptPage(const juce::String& parentId, const juce::String& renameId)
 {
+    if (!flushEdits()) return;
     const auto* existing = model.findPage(renameId);
     const bool renaming = existing != nullptr;
     const auto currentTitle = renaming ? existing->title : juce::String();

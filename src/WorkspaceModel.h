@@ -8,6 +8,8 @@ struct WorkspaceBlock
 {
     juce::String id, type = "text", text, url;
     bool checked = false;
+    juce::String name; // Optional in schema 1; older documents have no block name.
+    bool operator==(const WorkspaceBlock&) const = default;
 };
 struct WorkspacePage
 {
@@ -160,6 +162,7 @@ struct WorkspaceModel
                 b->setProperty("text", block.text);
                 b->setProperty("url", block.url);
                 b->setProperty("checked", block.checked);
+                b->setProperty("name", block.name);
                 blocks.add(juce::var(b.release()));
             }
             p->setProperty("blocks", blocks);
@@ -273,7 +276,7 @@ struct WorkspaceModel
                     return juce::Result::fail("Invalid block record.");
                 page.blocks.push_back({ b.getProperty("id", {}).toString(), b.getProperty("type", {}).toString(),
                     b.getProperty("text", {}).toString(), b.getProperty("url", {}).toString(),
-                    static_cast<bool>(b.getProperty("checked", false)) });
+                    static_cast<bool>(b.getProperty("checked", false)), b.getProperty("name", {}).toString() });
             }
             candidate.pages.push_back(std::move(page));
         }
