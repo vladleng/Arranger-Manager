@@ -11,14 +11,15 @@ int statusId(arranger::Status value)
 }
 }
 TaskDetails::TaskDetails(arranger::WorkspaceModel& data, Execute run,
-    std::function<void(juce::String)> goBack, std::function<void(juce::String)> archive)
-    : model(data), execute(std::move(run)), back(std::move(goBack)), archiveTask(std::move(archive))
+    std::function<void(juce::String)> goBack, std::function<void(juce::String)> archive,
+    std::function<void(juce::String)> notifyChanged)
+    : model(data), execute(std::move(run)), back(std::move(goBack)), archiveTask(std::move(archive)), changed(std::move(notifyChanged))
 {
     for (auto* field : { &name, &notes })
     {
         addAndMakeVisible(field);
         field->setFont(juce::FontOptions(16.0f));
-        field->onTextChange = [this] { if (!loading) startTimer(700); };
+        field->onTextChange = [this] { if (!loading) { feedback.setText(tr("Изменения ожидают сохранения…"), juce::dontSendNotification); startTimer(700); } };
     }
     notes.setMultiLine(true); notes.setReturnKeyStartsNewLine(true);
     name.setTextToShowWhenEmpty(tr("Название задачи"), juce::Colours::grey);
@@ -26,7 +27,7 @@ TaskDetails::TaskDetails(arranger::WorkspaceModel& data, Execute run,
     priority.addItemList({"P1", "P2", "P3", "P4"}, 1);
     for (auto* combo : { &status, &priority })
     {
-        addAndMakeVisible(combo); combo->onChange = [this] { if (!loading) startTimer(700); };
+        addAndMakeVisible(combo); combo->onChange = [this] { if (!loading) { feedback.setText(tr("Изменения ожидают сохранения…"), juce::dontSendNotification); startTimer(700); } };
     }
     const char* titles[] = {"Сохранить", "Перечитать", "К странице", "Удалить в архив", "+ Чек-поинт", "Изменить", "В архив"};
     int i = 0;
@@ -102,6 +103,7 @@ juce::Result TaskDetails::flush()
             setStatus(result);
             if (result.failed()) return result;
             baseline = values;
+            if (changed) changed(id);
         }
     }
     const auto saved = description.flush(); setStatus(saved); return saved;
@@ -111,10 +113,10 @@ juce::Result TaskDetails::bind(const juce::String& id)
     if (id != taskId)
     {
         const auto saved = flush(); if (saved.failed()) return saved;
-        taskId = id;
-        if (id.isEmpty()) return description.bind({}, {}, {});
+        if (id.isEmpty()) { taskId.clear(); return description.bind({}, {}, {}); }
         const auto* task = model.findTask(id);
         if (!task || arranger::WorkspaceQueries::taskArchived(model, id)) return juce::Result::fail("Task is not editable.");
+        taskId = id;
         baseline = task->properties; showProperties(); archivedCheckpoints.setToggleState(false, juce::dontSendNotification);
     }
     else if (id.isNotEmpty())

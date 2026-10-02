@@ -48,7 +48,12 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     addAndMakeVisible(hub.get());
     taskDetails = std::make_unique<TaskDetails>(model, [this](const auto& action) { return runCommand(action); },
         [this](juce::String id) { select("pageTasks:" + id); },
-        [this](juce::String id) { archiveTask(id); });
+        [this](juce::String id) { archiveTask(id); },
+        [this](juce::String id)
+        {
+            if (viewKey == "task:" + id)
+                if (const auto* task = model.findTask(id)) title.setText(task->properties.name, juce::dontSendNotification);
+        });
     addAndMakeVisible(taskDetails.get());
 
     addPage.onClick = [this] { promptPage({}); };
@@ -362,7 +367,8 @@ void WorkspaceShell::openTask(int index)
     const auto* song = arranger::WorkspaceQueries::song(model, ref.songId);
     if (!song) return;
     const auto path = song->path;
-    select("view:daw"); hub->openCatalogSong(path);
+    select("view:daw");
+    if (viewKey == "view:daw") hub->openCatalogSong(path);
 }
 void WorkspaceShell::promptTask()
 {

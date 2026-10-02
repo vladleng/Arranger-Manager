@@ -352,6 +352,8 @@ struct WorkspaceModel
         if (!root.isObject() || root.getProperty("format", {}).toString() != "ArrangerManagerWorkspace"
             || (version != 1 && version != 2))
             return juce::Result::fail("Invalid or unsupported workspace schema; file was not modified.");
+        if (version == 1 && root.hasProperty("tasks"))
+            return juce::Result::fail("Schema 1 contains unexpected task data; migration cancelled.");
         WorkspaceModel candidate;
         candidate.id = root.getProperty("id", {}).toString();
         candidate.name = root.getProperty("name", {}).toString();

@@ -8,7 +8,7 @@ class TaskDetails final : public juce::Component, private juce::Timer, private j
 public:
     using Execute = std::function<juce::Result(const arranger::WorkspaceAction&)>;
     TaskDetails(arranger::WorkspaceModel&, Execute, std::function<void(juce::String)> back,
-        std::function<void(juce::String)> archive);
+        std::function<void(juce::String)> archive, std::function<void(juce::String)> changed);
     juce::Result bind(const juce::String&);
     juce::Result flush();
     void resized() override;
@@ -28,7 +28,7 @@ private:
 
     arranger::WorkspaceModel& model;
     Execute execute;
-    std::function<void(juce::String)> back, archiveTask;
+    std::function<void(juce::String)> back, archiveTask, changed;
     juce::String taskId;
     arranger::TaskProperties baseline;
     bool loading = false;
