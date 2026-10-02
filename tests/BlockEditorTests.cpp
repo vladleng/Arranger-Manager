@@ -91,6 +91,7 @@ int main()
     REQUIRE(session.undo().wasOk() && model.catalog.songs[0].localNotes[0].text == "New DAW note", "Undo must preserve unrelated DAW edits");
     // Failed persistence leaves live model/history intact and retains the draft.
     const auto beforeFailure = model.toJson();
+    const auto blocksBeforeFailure = model.findPage(first)->blocks;
     blocks = session.blocks(); blocks[0].text = "Unsaved"; session.stage(blocks);
     rejectSave = true;
     REQUIRE(session.flush().failed() && model.toJson() == beforeFailure && session.dirty(), "Failed save changed model or discarded draft");
@@ -98,7 +99,7 @@ int main()
     REQUIRE(session.undo().failed() && model.toJson() == beforeFailure, "Failed undo changed live model");
     rejectSave = false; REQUIRE(session.flush().wasOk(), "Retry pending save");
     REQUIRE(session.undo().wasOk() && model.toJson() != beforeFailure, "Undo retry"); // revision increments, content restored
-    REQUIRE(model.findPage(first)->blocks[0].text != "Unsaved", "Failed save must not pollute history");
+    REQUIRE(model.findPage(first)->blocks == blocksBeforeFailure, "Failed save must not pollute history");
     // Reject stale writes rather than overwrite newer content.
     blocks = session.blocks(); blocks[0].text = "Local draft"; session.stage(blocks);
     model.findPage(first)->blocks[0].text = "External content";
@@ -121,6 +122,10 @@ int main()
     REQUIRE(commands.replacePageBlocks(first, blocks, blocks).failed(), "Archived blocks edited");
     REQUIRE(commands.restorePage(first).wasOk(), "Restore");
     REQUIRE(model.findPage(first)->blocks == blocks, "Archive lost blocks");
+    WorkspaceStore restartedStore(store.getFile());
+    WorkspaceModel restarted;
+    REQUIRE(restartedStore.load({}, {}, restarted).wasOk(), "Reload stored workspace after restart");
+    REQUIRE(restarted.findPage(first)->blocks == model.findPage(first)->blocks, "Restart lost blocks/IDs/order");
     // Schema 1 documents without the optional name still load.
     WorkspaceModel roundTrip;
     REQUIRE(WorkspaceModel::fromJson(model.toJson(), roundTrip).wasOk(), "Round trip");
