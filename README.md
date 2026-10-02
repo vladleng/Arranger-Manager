@@ -4,6 +4,8 @@
 
 ## Текущее состояние — 0.1d на основе 0.1 fix4
 
+**Для продолжения разработки:** актуальный код и документы находятся в ветке `hybrid-0-1d-folders-menu-song-notes` ([PR #34](https://github.com/vladleng/Arranger-Manager/pull/34)), ещё не слитой в main. Начните с [HANDOFF](docs/HANDOFF.md). 0.1d принята пользователем; следующее дополнение — 0.1e, цель этапа — 0.2, её окончательный состав ещё не задан. Мобильная версия и синхронизация отложены на будущее ([#35](https://github.com/vladleng/Arranger-Manager/issues/35)).
+
 Задачи и чек-поинты песни создаются в приложении: правый клик по песне → New task, по задаче → New checkpoint. Название меняется двойным кликом, порядок — перетаскиванием внутри песни или задачи. Notes песни и строк задач/треков/клипов редактируются прямо в ячейке; исходные Notes песни видны в шапке. Type песни выбирается из четырёх значков. Папки Studio Pro показываются, если содержат дорожки со статусом. PROG песни считает DONE среди размеченных треков и задач верхнего уровня; папки и чек-поинты отдельно не считаются. Меню открываются у курсора. Все задачи и заметки хранятся локально; `.song` приложение только читает. [Инструкция 0.1d](docs/HYBRID-0.1d.md).
 
 - Каталог нескольких `.song`: добавление проектов, папки, перемещение и удаление записей из каталога. Исходные файлы при этом не удаляются.
@@ -14,7 +16,7 @@
 - PROG трека показывает `клипы DONE / клипы с распознанным статусом`. PROG песни считает `треки и задачи DONE / все размеченные треки и задачи`, PROG папки — `песни DONE / все песни в папке`. Это счётчики объектов, а не покрытие времени или секций.
 - Info и Notes самой песни остаются в шапке из сохранённого `.song`. Поле Notes у задач, чек-поинтов, треков и клипов хранится локально и редактируется кликом; заметки треков Studio Pro и третья часть имени клипа в этой колонке не отображаются. Дорожки, клипы, секции и маркеры читаются из сохранённого `.song`. Изменения в Studio Pro становятся видны после сохранения. Приложение пока не записывает в `.song` и не видит несохранённые изменения.
 
-[Запуск Windows-приложения 0.1 fix4](docs/HUB-0.1-fix4.md) · [Передача контекста разработчику или новому чату](docs/HANDOFF.md) · [Концепция](docs/CONCEPT.md) · [Актуальный план](docs/ROADMAP.md)
+[Запуск Windows-приложения 0.1d](docs/HYBRID-0.1d.md) · [Передача контекста разработчику или новому чату](docs/HANDOFF.md) · [Концепция](docs/CONCEPT.md) · [Актуальный план](docs/ROADMAP.md)
 
 ## Сборка и тесты
 
@@ -32,4 +34,4 @@ CI создаёт архив `Arranger-Manager-0.1d-Windows-App` с `Arranger Ma
 
 `docs/CONCEPT.md`, `docs/ROADMAP.md` и `docs/HANDOFF.md` описывают **текущий** путь развития. Файлы `docs/HUB-0.0*.md`, `docs/STAGE0-TEST.md`, `docs/MAP-PREVIEW-0.0b.md`, `docs/DOCK-TEST-0.0d.md` и `docs/CONTEXT-BRIDGE-*.md` фиксируют **исторические прототипы и проверки**; их ранние UI, приоритеты на клипах и служебные ARA-дорожки не следует переносить в новую разработку как действующие требования.
 
-Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3; 0.1b fix1 — [PR #30](https://github.com/vladleng/Arranger-Manager/pull/30), 0.1c — [PR #32](https://github.com/vladleng/Arranger-Manager/pull/32), 0.1d — поверх него. Перед новой работой проверьте статус веток и PR.
+Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3; 0.1b fix1 — [PR #30](https://github.com/vladleng/Arranger-Manager/pull/30), 0.1c — [PR #32](https://github.com/vladleng/Arranger-Manager/pull/32), 0.1d — [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34) поверх него. Перед новой работой проверьте статус веток и PR.
