@@ -29,7 +29,7 @@ private:
     void updateStatus(const juce::Result&);
     static juce::String tr(const char*);
     Session session;
-    juce::String boundId, selectedId;
+    juce::String boundId, selectedId, fieldsId;
     int selected = -1;
     bool loading = false;
     juce::ListBox list { "Blocks", this };

@@ -194,6 +194,8 @@ void WorkspaceShell::showDetails()
     }
     else if (ordinary)
     {
+        page = model.findPage(selectedPage());
+        if (page == nullptr) return;
         breadcrumb.setText(arranger::WorkspaceQueries::breadcrumb(model, page->id), juce::dontSendNotification);
         title.setText(page->title, juce::dontSendNotification);
         int children = 0;

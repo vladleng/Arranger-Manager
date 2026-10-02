@@ -74,7 +74,8 @@ BlockEditor::BlockEditor()
             tr("Перечитать"), tr("Отмена"), this,
             juce::ModalCallbackFunction::create([safe](int result)
             {
-                if (safe == nullptr || result != 1) return;
+                if (safe == nullptr) return;
+                if (result != 1) { if (safe->session.dirty()) safe->startTimer(500); return; }
                 const auto loaded = safe->session.reload();
                 safe->updateStatus(loaded);
                 if (loaded.wasOk()) safe->refreshRows(true);
@@ -140,6 +141,7 @@ juce::Result BlockEditor::bind(const juce::String& id, Session::Read read, Sessi
 }
 juce::Result BlockEditor::flush()
 {
+    stageFields(); // Capture current widgets even before queued TextEditor notifications.
     stopTimer();
     const auto result = session.flush();
     updateStatus(result);
@@ -206,9 +208,11 @@ void BlockEditor::showBlock()
         component->setVisible(exists);
     hint.setVisible(!exists);
     checked.setVisible(false); urlLabel.setVisible(false); urlField.setVisible(false); openLink.setVisible(false);
+    fieldsId.clear();
     if (exists)
     {
         const auto& block = session.blocks()[static_cast<size_t>(selected)];
+        fieldsId = block.id;
         nameField.setText(block.name, false); textField.setText(block.text, false); urlField.setText(block.url, false);
         kind.setSelectedId(typeId(block.type), juce::dontSendNotification);
         checked.setToggleState(block.checked, juce::dontSendNotification);
@@ -223,13 +227,14 @@ void BlockEditor::showBlock()
 void BlockEditor::stageFields()
 {
     if (loading || selected < 0 || selected >= getNumRows()) return;
+    if (session.blocks()[static_cast<size_t>(selected)].id != fieldsId) return;
     auto blocks = session.blocks();
     auto& block = blocks[static_cast<size_t>(selected)];
     block.name = nameField.getText(); block.text = textField.getText(); block.url = urlField.getText();
     block.type = types[juce::jlimit(1, 5, kind.getSelectedId()) - 1]; block.checked = checked.getToggleState();
     session.stage(std::move(blocks)); list.repaint();
     updateStatus(juce::Result::ok());
-    startTimer(500);
+    if (session.dirty()) startTimer(500);
 }
 void BlockEditor::addBlock()
 {
@@ -258,6 +263,7 @@ void BlockEditor::moveBlock(int amount)
 }
 void BlockEditor::history(bool forwards)
 {
+    stageFields();
     stopTimer();
     const auto result = forwards ? session.redo() : session.undo();
     updateStatus(result);
