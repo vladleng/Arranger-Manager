@@ -2,7 +2,9 @@
 
 Рабочее пространство для музыкальных и обычных проектов: задачи и страницы, план дня, календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. **Новое направление оформлено в плане; реализованная версия сейчас — DAW-органайзер 0.1d для Fender Studio Pro.** Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
 
-## Текущее состояние — принятая 0.1e
+## Текущее состояние — принятая 0.1e; кандидат 0.1f
+
+**Разработка 0.1f:** ветка `workspace-0-1f-navigation-pages` от принятого main. Боковая панель, команды обычных страниц (создание/переименование/вложенность/архив/восстановление), разделы DAW и Все задачи реализованы в кандидате. [Проверка 0.1f](docs/HYBRID-0.1f.md). CI и пользовательская приёмка отслеживаются в PR; подэтап пока не закрыт.
 
 **0.1e принята пользователем и слита в `main` через [PR #43](https://github.com/vladleng/Arranger-Manager/pull/43) 2026-10-02.** Windows Build #59 и все четыре тестовых набора успешны. Реализованы постоянные ID, отдельный workspace schema 1, миграция прежнего каталога, резервирование/восстановление и прототип редактора. Существующие задачи, Notes, порядок, статусы, типы и PROG сохраняются.
 
@@ -41,7 +43,7 @@
 
 ```sh
 cmake -S . -B build
-cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests --parallel 2
+cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 

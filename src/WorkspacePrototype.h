@@ -42,6 +42,8 @@ public:
         setSize(720, 500);
     }
 
+    juce::String getPageId() const { return pageId; }
+
     void paint(juce::Graphics& g) override { g.fillAll(juce::Colour(0xff1d232b)); }
     void resized() override
     {

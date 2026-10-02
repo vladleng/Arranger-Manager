@@ -218,7 +218,7 @@ HubEditor::HubEditor(std::function<juce::String()> getPath,
     : getProjectPath(std::move(getPath)), setProjectPath(std::move(setPath)),
       catalog(songCatalog), saveCatalog(std::move(onSaveCatalog))
 {
-    heading.setText("Arranger Manager 0.1e", juce::dontSendNotification);
+    heading.setText("Arranger Manager 0.1f", juce::dontSendNotification);
     heading.setFont(juce::FontOptions(21.0f, juce::Font::bold));
     addAndMakeVisible(heading);
     for (auto* label : { &path, &summary, &info, &notes, &help })
@@ -1343,4 +1343,23 @@ juce::String HubEditor::getTooltipForRow(int index)
         tip += row.notes;
     }
     return tip;
+}
+
+void HubEditor::openCatalogSong(const juce::String& songPath)
+{
+    if (catalog == nullptr || catalog->findSong(songPath) == nullptr) return;
+    finishInlineEdit(true);
+    if (setProjectPath) setProjectPath(songPath);
+    expandedSongs.insert("project:" + songPath.toStdString());
+    if (const auto* song = catalog->findSong(songPath))
+        collapsed.erase("folder:" + song->folderId.toStdString());
+    refreshCatalog();
+    for (int i = 0; i < static_cast<int>(rows.size()); ++i)
+        if (rows[static_cast<size_t>(i)].kind == RowKind::project
+            && rows[static_cast<size_t>(i)].songPath.equalsIgnoreCase(songPath))
+        {
+            list.selectRow(i);
+            list.scrollToEnsureRowIsOnscreen(i);
+            break;
+        }
 }
