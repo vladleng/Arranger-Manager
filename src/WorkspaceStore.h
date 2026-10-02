@@ -11,6 +11,7 @@ public:
     explicit WorkspaceStore(juce::File destination) : file(std::move(destination)) {}
     const juce::File& getFile() const { return file; }
     juce::File backupFile() const { return file.getSiblingFile(file.getFileName() + ".backup"); }
+    juce::File schemaOneFile() const { return file.getSiblingFile(file.getFileName() + ".schema-1.json"); }
     juce::File legacyFile() const { return file.getSiblingFile(file.getFileName() + ".legacy-v1.json"); }
 
     juce::Result load(const juce::String& legacy, const juce::String& lastPath, WorkspaceModel& output)
@@ -21,8 +22,25 @@ public:
             WorkspaceModel candidate;
             const auto result = WorkspaceModel::fromJson(text, candidate);
             if (result.failed()) return result;
+            const int version = static_cast<int>(juce::JSON::parse(text).getProperty("schemaVersion", 0));
+            if (version == 1)
+            {
+                auto backup = schemaOneFile();
+                if (backup.existsAsFile() && backup.loadFileAsString() != text)
+                    backup = file.getSiblingFile(file.getFileName() + ".schema-1-" + juce::Uuid().toString() + ".json");
+                if (!backup.existsAsFile())
+                {
+                    const auto preserved = atomicWrite(backup, text);
+                    if (preserved.failed()) return preserved;
+                }
+            }
             lastSaved = text;
             loaded = true;
+            if (version == 1)
+            {
+                const auto migrated = save(candidate);
+                if (migrated.failed()) { loaded = false; return migrated; }
+            }
             output = std::move(candidate);
             return juce::Result::ok();
         }
