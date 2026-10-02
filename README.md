@@ -1,12 +1,21 @@
 # Arranger Manager
 
-## Актуальное состояние на 2026-10-02
+## Актуальное направление на 2026-10-02
 
-Рабочая версия **0.1d** принята пользователем. Код и актуальные документы находятся в ветке [`hybrid-0-1d-folders-menu-song-notes`](https://github.com/vladleng/Arranger-Manager/tree/hybrid-0-1d-folders-menu-song-notes), [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34); стек PR ещё не слит в main.
+Arranger Manager развивается в собственное рабочее пространство по принципу Notion с DAW: страницы задач, план дня, общий календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. Новое направление **запланировано**, рабочая реализованная версия — принятая **0.1d**.
 
-**Для продолжения в новом чате начните с [HANDOFF](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/docs/HANDOFF.md)**, затем прочитайте [актуальный README](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/README.md), CONCEPT и ROADMAP в той же ветке. Продолжать разработку следует от её текущего HEAD.
+Код и актуальные документы находятся в ветке [`hybrid-0-1d-folders-menu-song-notes`](https://github.com/vladleng/Arranger-Manager/tree/hybrid-0-1d-folders-menu-song-notes), [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34); стек PR ещё не слит в main. Для нового чата начните с [HANDOFF](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/docs/HANDOFF.md), затем прочитайте [CONCEPT](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/docs/CONCEPT.md), [ROADMAP](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/docs/ROADMAP.md) и [WORKSPACE-ARCHITECTURE](https://github.com/vladleng/Arranger-Manager/blob/hybrid-0-1d-folders-menu-song-notes/docs/WORKSPACE-ARCHITECTURE.md).
 
-Основной продукт — Windows-приложение: чтение сохранённых `.song` и локальные задачи/чек-поинты, Notes, статусы и типы песен. Запись `.song` отложена. Мобильная версия и синхронизация — будущий backlog (#35). Следующее дополнение — 0.1e, цель этапа — 0.2; окончательный состав ещё не задан.
+| Плановый выпуск | Этап | Issue |
+| --- | --- | --- |
+| 0.2 | Рабочее пространство, страницы и единая модель задач | [#37](https://github.com/vladleng/Arranger-Manager/issues/37) |
+| 0.3 | План дня из общего списка задач | [#38](https://github.com/vladleng/Arranger-Manager/issues/38) |
+| 0.4 | Общий календарь всех страниц | [#39](https://github.com/vladleng/Arranger-Manager/issues/39) |
+| 0.5 | Timeline для планирования проектов | [#40](https://github.com/vladleng/Arranger-Manager/issues/40) |
+| 0.6 | Сбор и обзор аналитики соцсетей | [#41](https://github.com/vladleng/Arranger-Manager/issues/41) |
+| 0.7 | Интеграция с ChatGPT и помощник по рабочему пространству | [#42](https://github.com/vladleng/Arranger-Manager/issues/42) |
+
+Общий план: [#36](https://github.com/vladleng/Arranger-Manager/issues/36). Следующий подэтап — 0.1e: ID, хранилище и миграция данных 0.1d. Все новые этапы ещё не реализованы. .song остаётся только для чтения, телефон и синхронизация устройств — отложенная задача #35.
 
 ## Историческая концепция main
 
