@@ -24,10 +24,14 @@ struct WorkspaceModel
     SongCatalog catalog;
     std::vector<WorkspacePage> pages;
 
+    const WorkspacePage* findPage(const juce::String& pageId) const
+    {
+        for (const auto& page : pages) if (page.id == pageId) return &page;
+        return nullptr;
+    }
     WorkspacePage* findPage(const juce::String& pageId)
     {
-        for (auto& page : pages) if (page.id == pageId) return &page;
-        return nullptr;
+        return const_cast<WorkspacePage*>(std::as_const(*this).findPage(pageId));
     }
 
     void reconcileCatalogPages()

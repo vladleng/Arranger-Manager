@@ -18,6 +18,7 @@ public:
     ~HubEditor() override;
     void paint(juce::Graphics&) override;
     void resized() override;
+    void openCatalogSong(const juce::String& songPath);
 private:
     enum class RowKind { folder, project, task, checkpoint, trackFolder, track, clip };
     enum class EditKind { none, note, name };

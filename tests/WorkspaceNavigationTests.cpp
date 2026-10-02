@@ -1,0 +1,116 @@
+#include "WorkspaceController.h"
+#include <iostream>
+
+static bool check(bool condition, const char* message)
+{
+    if (!condition) std::cerr << message << '\n';
+    return condition;
+}
+struct TestDirectory
+{
+    juce::File path = juce::File::getSpecialLocation(juce::File::tempDirectory)
+        .getChildFile("ArrangerNavigationTest-" + juce::Uuid().toString());
+    TestDirectory() { path.createDirectory(); }
+    ~TestDirectory() { path.deleteRecursively(); }
+};
+
+int main()
+{
+    using namespace arranger;
+    WorkspaceModel model;
+    model.catalog.addSong("C:\\Songs\\One.song");
+    model.catalog.addSong("C:\\Songs\\Two.song");
+    const auto taskId = model.catalog.addTask(model.catalog.songs[0].path, "Harmony");
+    model.catalog.addCheckpoint(model.catalog.songs[0].path, taskId, "Verse");
+    model.catalog.addTask(model.catalog.songs[1].path, "Mix");
+    model.reconcileCatalogPages();
+    WorkspaceCommands commands(model);
+    juce::String root, child, grandchild, other;
+    if (!check(commands.createPage({}, juce::String::fromUTF8("Контент"), root).wasOk(), "Root creation failed")
+        || !check(commands.createPage(root, "YouTube", child).wasOk(), "Child creation failed")
+        || !check(commands.createPage(child, "Shorts", grandchild).wasOk(), "Grandchild creation failed")
+        || !check(commands.createPage({}, "Other", other).wasOk(), "Other root failed")) return 1;
+    model.findPage(child)->blocks.push_back({"kept-block", "text", "Text", {}, false});
+    const auto original = model.toJson();
+    const auto childId = child;
+    if (!check(commands.movePage(root, grandchild).failed(), "Descendant cycle accepted")
+        || !check(commands.movePage(root, root).failed(), "Self cycle accepted")
+        || !check(commands.movePage(child, "missing").failed(), "Dangling parent accepted")
+        || !check(commands.movePage(child, model.catalog.songs[0].pageId).failed(), "DAW page parent accepted")
+        || !check(commands.renamePage(root, "  ").failed(), "Empty rename accepted")
+        || !check(model.toJson() == original, "Failed command changed model")
+        || !check(commands.renamePage(child, juce::String::fromUTF8("Видео")).wasOk(), "UTF-8 rename failed")
+        || !check(child == childId && model.findPage(child)->blocks[0].id == "kept-block", "Rename lost identity/content")) return 1;
+
+    auto rows = WorkspaceQueries::activePages(model);
+    if (!check(rows.size() == 4 && rows[0].id == root && rows[1].id == child && rows[2].depth == 2,
+            "Tree ordering or depth failed")
+        || !check(WorkspaceQueries::breadcrumb(model, grandchild)
+            == juce::String::fromUTF8("Контент / Видео / Shorts"), "Breadcrumb failed")
+        || !check(commands.movePage(child, other).wasOk(), "Subtree move failed")
+        || !check(model.findPage(grandchild)->parentPageId == child, "Subtree ownership changed")
+        || !check(WorkspaceQueries::breadcrumb(model, grandchild)
+            == juce::String::fromUTF8("Other / Видео / Shorts"), "Moved breadcrumb failed")) return 1;
+
+    if (!check(commands.archivePage(child).wasOk(), "Archive failed")
+        || !check(WorkspaceQueries::isArchived(model, grandchild), "Archive did not hide descendants")
+        || !check(WorkspaceQueries::archivedRoots(model).size() == 1, "Archive roots duplicated")
+        || !check(WorkspaceQueries::activePages(model).size() == 2, "Archived pages remained visible")
+        || !check(commands.renamePage(grandchild, "bad").failed(), "Archived descendant renamed")
+        || !check(commands.createPage(child, "bad", root).failed(), "Created page under archive")
+        || !check(commands.movePage(other, child).failed(), "Moved page into archive")
+        || !check(commands.restorePage(child).wasOk(), "Restore failed")
+        || !check(!WorkspaceQueries::isArchived(model, grandchild), "Restore did not reveal descendants")
+        || !check(model.findPage(child)->blocks[0].text == "Text", "Archive lost blocks")) return 1;
+
+    // Independently archived child stays archived after ancestor restore.
+    if (!check(commands.archivePage(grandchild).wasOk(), "Independent child archive failed")
+        || !check(commands.archivePage(other).wasOk(), "Ancestor archive failed")
+        || !check(commands.restorePage(grandchild).failed(), "Child restored inside archived ancestor")
+        || !check(commands.restorePage(other).wasOk(), "Ancestor restore failed")
+        || !check(WorkspaceQueries::isArchived(model, grandchild), "Ancestor restore cleared child archive")
+        || !check(commands.restorePage(grandchild).wasOk(), "Independent child restore failed")
+        || !check(model.validate().wasOk(), "Page operations broke workspace")) return 1;
+    if (!check(commands.renamePage(model.catalog.songs[0].pageId, "bad").failed(), "DAW page renamed by ordinary command")
+        || !check(commands.archivePage(model.catalog.songs[0].pageId).failed(), "DAW page archived by ordinary command")) return 1;
+
+    const auto refs = WorkspaceQueries::allTasks(model);
+    if (!check(refs.size() == 2 && refs[0].taskId == taskId, "All-tasks query duplicated/missed records")
+        || !check(WorkspaceQueries::task(model, refs[0]) == &model.catalog.songs[0].tasks[0],
+            "All-tasks view copied task instead of resolving source")) return 1;
+    model.catalog.setTaskStatus(model.catalog.songs[0].path, taskId, Status::done);
+    if (!check(WorkspaceQueries::task(model, refs[0])->status == Status::done, "View did not reflect source mutation")) return 1;
+    auto wrongOwner = refs[0]; wrongOwner.ownerPageId = "wrong";
+    if (!check(WorkspaceQueries::task(model, wrongOwner) == nullptr, "Wrong task owner was accepted")) return 1;
+
+    TestDirectory directory;
+    const auto file = directory.path.getChildFile("workspace.json");
+    WorkspaceStore store(file);
+    WorkspaceModel persisted;
+    if (!check(store.load({}, {}, persisted).wasOk(), "Store setup failed")) return 1;
+    WorkspaceController controller(persisted, store);
+    juce::String pageId;
+    if (!check(controller.execute([&](WorkspaceCommands& c)
+        { return c.createPage({}, juce::String::fromUTF8("Проект"), pageId); }).wasOk(), "Controller create failed")) return 1;
+    const auto beforeInvalid = persisted.toJson();
+    if (!check(controller.execute([&](WorkspaceCommands& c) { return c.movePage(pageId, pageId); }).failed(),
+            "Controller accepted cycle")
+        || !check(persisted.toJson() == beforeInvalid, "Rejected command changed live model")) return 1;
+    WorkspaceStore reopened(file);
+    WorkspaceModel loaded;
+    if (!check(reopened.load({}, {}, loaded).wasOk(), "Restart failed")
+        || !check(loaded.findPage(pageId) != nullptr
+            && loaded.findPage(pageId)->title == juce::String::fromUTF8("Проект"), "Page ID/title lost on restart")) return 1;
+    file.replaceWithText("{external-change");
+    if (!check(controller.execute([&](WorkspaceCommands& c) { return c.renamePage(pageId, "Unsaved"); }).failed(),
+            "Controller ignored save failure")
+        || !check(persisted.toJson() == beforeInvalid, "Failed save committed UI/model mutation")
+        || !check(file.loadFileAsString() == "{external-change", "Failed command overwrote external data")) return 1;
+
+    WorkspaceModel restored;
+    if (!check(WorkspaceModel::fromJson(model.toJson(), restored).wasOk(), "Round-trip failed")
+        || !check(restored.findPage(child)->id == childId && restored.findPage(grandchild)->parentPageId == child,
+            "Hierarchy/IDs lost on restart")
+        || !check(restored.catalog.songs[0].tasks[0].checkpoints[0].name == "Verse", "Page operations changed DAW checkpoints")) return 1;
+    return 0;
+}

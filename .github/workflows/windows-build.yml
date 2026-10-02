@@ -13,18 +13,18 @@ jobs:
       - name: Configure
         run: cmake -S . -B build
       - name: Build
-        run: cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests --parallel 2
+        run: cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests --parallel 2
       - name: Test reader, catalog and workspace migration
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Prepare package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1e" | Out-Null
-          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1e"
-          Copy-Item -Force "docs/HYBRID-0.1e.md" "package/Arranger Manager 0.1e"
-          Copy-Item -Force "docs/WORKSPACE-0.1e-DECISIONS.md" "package/Arranger Manager 0.1e"
-          Copy-Item -Force "prototypes/editor-web.html" "package/Arranger Manager 0.1e"
+          New-Item -ItemType Directory -Force -Path "package/Arranger Manager 0.1f" | Out-Null
+          Copy-Item -Force "build/ArrangerManagerDesktop_artefacts/Release/Arranger Manager.exe" "package/Arranger Manager 0.1f"
+          Copy-Item -Force "docs/HYBRID-0.1f.md" "package/Arranger Manager 0.1f"
+          Copy-Item -Force "docs/WORKSPACE-0.1e-DECISIONS.md" "package/Arranger Manager 0.1f"
+          Copy-Item -Force "prototypes/editor-web.html" "package/Arranger Manager 0.1f"
       - uses: actions/upload-artifact@v4
         with:
-          name: Arranger-Manager-0.1e-Windows-App
+          name: Arranger-Manager-0.1f-Windows-App
           path: package

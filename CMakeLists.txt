@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ArrangerManager VERSION 0.1.10 LANGUAGES C CXX)
+project(ArrangerManager VERSION 0.1.11 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -83,7 +83,9 @@ juce_generate_juce_header(ArrangerManagerDesktop)
 target_sources(ArrangerManagerDesktop PRIVATE
     src/ArrangementTag.h src/StudioProColour.h src/SongProgress.h src/SongCatalog.h src/SongNoteKeys.h src/SongSnapshot.h src/SongSnapshot.cpp
     src/HubEditor.h src/HubEditor.cpp src/HubApplication.cpp
-    src/WorkspaceModel.h src/WorkspaceStore.h src/WorkspacePrototype.h)
+    src/WorkspaceModel.h src/WorkspaceStore.h src/WorkspacePrototype.h
+    src/WorkspaceQueries.h src/WorkspaceCommands.h src/WorkspaceController.h
+    src/WorkspaceShell.h src/WorkspaceShell.cpp)
 target_compile_definitions(ArrangerManagerDesktop PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 if(MSVC)
     target_compile_options(ArrangerManagerDesktop PRIVATE /utf-8)
@@ -126,3 +128,13 @@ endif()
 target_link_libraries(WorkspaceTests PRIVATE juce::juce_core
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 add_test(NAME WorkspaceTests COMMAND WorkspaceTests)
+
+add_executable(WorkspaceNavigationTests tests/WorkspaceNavigationTests.cpp)
+target_include_directories(WorkspaceNavigationTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(WorkspaceNavigationTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+if(MSVC)
+    target_compile_options(WorkspaceNavigationTests PRIVATE /utf-8)
+endif()
+target_link_libraries(WorkspaceNavigationTests PRIVATE juce::juce_core
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+add_test(NAME WorkspaceNavigationTests COMMAND WorkspaceNavigationTests)
