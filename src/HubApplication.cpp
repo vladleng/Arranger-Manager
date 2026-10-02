@@ -1,7 +1,6 @@
 #include <JuceHeader.h>
 #include "HubEditor.h"
 #include "WorkspaceStore.h"
-#include "WorkspacePrototype.h"
 #include "WorkspaceShell.h"
 #include "WorkspaceController.h"
 #include <utility>
@@ -16,7 +15,7 @@ public:
         std::function<void()> saveCatalog, std::function<void(int)> action,
         WorkspaceShell::Execute execute, juce::String selectedView,
         std::function<void(juce::String)> persistView)
-        : juce::DocumentWindow("Arranger Manager 0.1f", juce::Colour(0xff1d232b),
+        : juce::DocumentWindow("Arranger Manager 0.1g", juce::Colour(0xff1d232b),
               juce::DocumentWindow::allButtons), workspaceAction(std::move(action))
     {
         setUsingNativeTitleBar(true);
@@ -35,6 +34,11 @@ public:
     {
         if (auto* shell = dynamic_cast<WorkspaceShell*>(getContentComponent())) shell->refresh();
     }
+    bool flushEdits()
+    {
+        if (auto* shell = dynamic_cast<WorkspaceShell*>(getContentComponent())) return shell->flushEdits();
+        return true;
+    }
     void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
 private:
     juce::StringArray getMenuBarNames() override { return {"Workspace"}; }
@@ -42,7 +46,6 @@ private:
     {
         juce::PopupMenu menu;
         menu.addItem(1, "Storage information");
-        menu.addItem(2, "Editor prototype");
         menu.addSeparator();
         menu.addItem(3, "Restore previous workspace backup...");
         return menu;
@@ -51,26 +54,11 @@ private:
     std::function<void(int)> workspaceAction;
 };
 
-class PrototypeWindow final : public juce::DocumentWindow
-{
-public:
-    PrototypeWindow(arranger::WorkspaceModel& model, std::function<void()> save)
-        : juce::DocumentWindow("Editor prototype - 0.1f", juce::Colour(0xff1d232b), allButtons)
-    {
-        setUsingNativeTitleBar(true);
-        setContentOwned(new WorkspacePrototype(model, std::move(save)), true);
-        setResizable(true, false);
-        centreWithSize(760, 540);
-        setVisible(true);
-    }
-    void closeButtonPressed() override { setVisible(false); }
-};
-
 class HubApplication final : public juce::JUCEApplication
 {
 public:
     const juce::String getApplicationName() override { return "Arranger Manager"; }
-    const juce::String getApplicationVersion() override { return "0.1f"; }
+    const juce::String getApplicationVersion() override { return "0.1g"; }
     bool moreThanOneInstanceAllowed() override { return false; }
 
     void initialise(const juce::String& commandLine) override
@@ -95,9 +83,14 @@ public:
         openMainWindow();
     }
 
+    void systemRequestedQuit() override
+    {
+        if (window != nullptr && !window->flushEdits()) return;
+        quit();
+    }
+
     void shutdown() override
     {
-        prototype.reset();
         window.reset();
         controller.reset();
         store.reset();
@@ -143,7 +136,7 @@ private:
                 if (action == 1)
                 {
                     juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::InfoIcon,
-                        "Workspace storage", "Version: 0.1f\nWorkspace ID: " + workspace.id
+                        "Workspace storage", "Version: 0.1g\nWorkspace ID: " + workspace.id
                             + "\nSchema: 1\nRevision: " + juce::String(workspace.revision)
                             + "\nSongs: " + juce::String(static_cast<int>(workspace.catalog.songs.size()))
                             + "\nPages: " + juce::String(static_cast<int>(workspace.pages.size()))
@@ -151,21 +144,9 @@ private:
                             + "\nBackup: " + store->backupFile().getFullPathName()
                             + "\nLegacy catalog backup: " + store->legacyFile().getFullPathName(), window.get());
                 }
-                else if (action == 2)
-                {
-                    if (prototypeArchived())
-                    {
-                        juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::InfoIcon,
-                            "Archived page", "Restore the Editor prototype page from Archive before editing.", window.get());
-                        return;
-                    }
-                    if (prototype == nullptr)
-                        prototype = std::make_unique<PrototypeWindow>(workspace, [this] { saveWorkspace(); });
-                    prototype->setVisible(true);
-                    prototype->toFront(true);
-                }
                 else if (action == 3)
                 {
+                    if (!window->flushEdits()) return;
                     juce::AlertWindow::showOkCancelBox(juce::MessageBoxIconType::WarningIcon,
                         "Restore previous workspace", "Restore the previous saved version? The current file "
                         "will be preserved separately. Recent edits will no longer appear.",
@@ -180,7 +161,6 @@ private:
                                     "Restore failed", result.getErrorMessage(), window.get());
                                 return;
                             }
-                            prototype.reset();
                             window.reset();
                             const auto loaded = store->load({}, {}, workspace);
                             if (loaded.failed()) failStartup(loaded.getErrorMessage());
@@ -191,7 +171,6 @@ private:
             [this](const arranger::WorkspaceAction& action)
             {
                 auto result = controller->execute(action);
-                if (result.wasOk() && prototypeArchived()) prototype.reset();
                 return result;
             },
             settings.getUserSettings()->getValue("workspaceView", "view:daw"),
@@ -205,24 +184,12 @@ private:
             });
     }
 
-    bool prototypeArchived() const
-    {
-        if (prototype != nullptr)
-            if (auto* editor = dynamic_cast<WorkspacePrototype*>(prototype->getContentComponent()))
-                return arranger::WorkspaceQueries::isArchived(workspace, editor->getPageId());
-        for (const auto& page : workspace.pages)
-            if (page.kind == "page" && page.title == "Editor prototype"
-                && arranger::WorkspaceQueries::isArchived(workspace, page.id)) return true;
-        return false;
-    }
-
     juce::ApplicationProperties settings;
     juce::String projectPath;
     arranger::WorkspaceModel workspace;
     std::unique_ptr<arranger::WorkspaceStore> store;
     std::unique_ptr<arranger::WorkspaceController> controller;
     std::unique_ptr<HubWindow> window;
-    std::unique_ptr<PrototypeWindow> prototype;
 };
 }
 START_JUCE_APPLICATION(HubApplication)

@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "HubEditor.h"
 #include "WorkspaceCommands.h"
+#include "BlockEditor.h"
 
 class WorkspaceShell final : public juce::Component
 {
@@ -12,6 +13,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void refresh();
+    bool flushEdits();
 
 private:
     struct NavRow { juce::String key, title; int depth = 0; };
@@ -70,6 +72,6 @@ private:
     juce::ListBox nav { "Pages", &navModel }, tasks { "All tasks", &taskModel }, archive { "Archive", &archiveModel };
     juce::Label brand, title, breadcrumb, description, empty;
     juce::TextButton addPage, addChild, rename, move, archiveButton, restore, openSource;
-    juce::TextEditor pageBody;
+    BlockEditor blockEditor;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WorkspaceShell)
 };

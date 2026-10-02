@@ -64,6 +64,20 @@ public:
         return juce::Result::ok();
     }
 
+    juce::Result replacePageBlocks(const juce::String& id,
+        const std::vector<WorkspaceBlock>& expected, const std::vector<WorkspaceBlock>& blocks)
+    {
+        auto* page = editablePage(id);
+        if (page == nullptr) return juce::Result::fail("Only active ordinary pages can be edited.");
+        if (page->blocks != expected)
+            return juce::Result::fail("Page content changed elsewhere. Reload the editor before editing.");
+        auto candidate = model;
+        candidate.findPage(id)->blocks = blocks;
+        const auto result = candidate.validate();
+        if (result.wasOk()) page->blocks = blocks;
+        return result;
+    }
+
 private:
     WorkspacePage* editablePage(const juce::String& id)
     {
