@@ -21,6 +21,7 @@ int main()
     TestDirectory directory;
     WorkspaceStore store(directory.path.getChildFile("workspace.json"));
     WorkspaceModel model;
+    REQUIRE(store.load({}, {}, model).wasOk(), "Initial store load");
     model.catalog.addSong("C:\\Songs\\Song.song");
     const auto taskId = model.catalog.addTask(model.catalog.songs[0].path, "Mix");
     model.catalog.addCheckpoint(model.catalog.songs[0].path, taskId, "Drums");
