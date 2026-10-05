@@ -123,6 +123,7 @@ public:
 private:
     static juce::Result atomicCopy(const juce::File& source, const juce::File& target)
     {
+        if (target.isDirectory()) return juce::Result::fail("Workspace destination is a directory.");
         const auto directory = target.getParentDirectory().createDirectory();
         if (directory.failed()) return directory;
         juce::TemporaryFile temporary(target);
@@ -135,6 +136,7 @@ private:
 
     static juce::Result atomicWrite(const juce::File& target, const juce::String& text)
     {
+        if (target.isDirectory()) return juce::Result::fail("Workspace destination is a directory.");
         const auto directory = target.getParentDirectory().createDirectory();
         if (directory.failed()) return directory;
         juce::TemporaryFile temporary(target);
@@ -159,3 +161,4 @@ private:
     bool loaded = false;
 };
 }
+

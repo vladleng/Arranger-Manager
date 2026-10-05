@@ -4,7 +4,7 @@
 
 ## Текущее состояние — принятая 0.1g; кандидат 0.1h
 
-0.1g принята пользователем 2026-10-02 и слита в main через PR #45. Windows Build #67 успешна, 6/6 тестовых наборов пройдены. 0.1h реализуется в workspace-0-1h-general-tasks: задачи обычных страниц, свойства P1–P4/Notes/статус, чек-поинты, подробные описания и восстановление. [Проверка 0.1h](docs/HYBRID-0.1h.md); CI и пользовательская приёмка — в PR. Workspace schema 2 с точной копией schema 1 при миграции.
+0.1g принята пользователем 2026-10-02 и слита в main через PR #45. Windows Build #67 успешна, 6/6 тестовых наборов пройдены. 0.1h реализуется в workspace-0-1h-general-tasks: задачи обычных страниц, свойства P1–P4/Notes/статус, чек-поинты, подробные описания и восстановление. [Проверка 0.1h](docs/HYBRID-0.1h.md); CI и пользовательская приёмка — в PR. Workspace schema 2 с точной копией schema 1 при миграции. Задачи и чек-поинты раскрываются в тёмной таблице; свойства, добавление чек-поинтов и архив доступны по правому клику.
 
 Ядро, навигация, архив страниц и блочный редактор реализованы. [HANDOFF](docs/HANDOFF.md) · [ROADMAP](docs/ROADMAP.md) · [Проверка 0.1g](docs/HYBRID-0.1g.md).
 
@@ -52,3 +52,4 @@ CI создаёт архив `Arranger-Manager-0.1h-Windows-App` с `Arranger Ma
 `docs/CONCEPT.md`, `docs/ROADMAP.md` и `docs/HANDOFF.md` описывают **текущий** путь развития. Файлы `docs/HUB-0.0*.md`, `docs/STAGE0-TEST.md`, `docs/MAP-PREVIEW-0.0b.md`, `docs/DOCK-TEST-0.0d.md` и `docs/CONTEXT-BRIDGE-*.md` фиксируют **исторические прототипы и проверки**; их ранние UI, приоритеты на клипах и служебные ARA-дорожки не следует переносить в новую разработку как действующие требования.
 
 Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3; 0.1b fix1 — [PR #30](https://github.com/vladleng/Arranger-Manager/pull/30), 0.1c — [PR #32](https://github.com/vladleng/Arranger-Manager/pull/32), 0.1d — [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34) поверх него. Весь этот исторический стек включён в `main` через PR #34 2026-10-02. Для новой работы создавайте ветку от актуального `main`.
+

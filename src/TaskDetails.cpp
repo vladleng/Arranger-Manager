@@ -13,7 +13,10 @@ int statusId(arranger::Status value)
 TaskDetails::TaskDetails(arranger::WorkspaceModel& data, Execute run,
     std::function<void(juce::String)> goBack, std::function<void(juce::String)> archive,
     std::function<void(juce::String)> notifyChanged)
-    : model(data), execute(std::move(run)), back(std::move(goBack)), archiveTask(std::move(archive)), changed(std::move(notifyChanged))
+    : model(data), execute(std::move(run)), back(std::move(goBack)), archiveTask(std::move(archive)), changed(std::move(notifyChanged)),
+      checkpoints(model, execute, [this] { return flush().wasOk(); }, {},
+          [this] { bind(taskId); if (changed) changed(taskId); },
+          [this](juce::String id) { if (flush().wasOk()) archiveTask(id); })
 {
     for (auto* field : { &name, &notes })
     {
@@ -29,21 +32,23 @@ TaskDetails::TaskDetails(arranger::WorkspaceModel& data, Execute run,
     {
         addAndMakeVisible(combo); combo->onChange = [this] { if (!loading) { feedback.setText(tr("Изменения ожидают сохранения…"), juce::dontSendNotification); startTimer(700); } };
     }
-    const char* titles[] = {"Сохранить", "Перечитать", "К странице", "Удалить в архив", "+ Чек-поинт", "Изменить", "В архив"};
+    const char* titles[] = {"Сохранить", "Перечитать", "К странице", "Удалить в архив"};
     int i = 0;
-    for (auto* button : { &save, &reloadProperties, &owner, &archiveButton, &addCheckpoint, &editCheckpoint, &removeCheckpoint })
+    for (auto* button : { &save, &reloadProperties, &owner, &archiveButton })
     {
-        addAndMakeVisible(button); button->setButtonText(tr(titles[i++]));
+        addChildComponent(button); button->setButtonText(tr(titles[i++]));
     }
-    for (auto* label : { &noteLabel, &cpLabel, &feedback })
+    for (auto* label : { &propertiesLabel, &noteLabel, &cpLabel, &feedback })
     {
         addAndMakeVisible(label); label->setColour(juce::Label::textColourId, juce::Colour(0xffb8c5d5));
     }
+    propertiesLabel.setText(tr("Свойства задачи · правый клик — сохранить, перечитать, к странице, архив"), juce::dontSendNotification);
+    propertiesLabel.setInterceptsMouseClicks(false, false);
+    noteLabel.setInterceptsMouseClicks(false, false);
     noteLabel.setText("Notes", juce::dontSendNotification);
     cpLabel.setText(tr("Чек-поинты"), juce::dontSendNotification);
-    addAndMakeVisible(archivedCheckpoints); archivedCheckpoints.setButtonText(tr("Архив чек-поинтов"));
-    addAndMakeVisible(checkpoints); checkpoints.setRowHeight(60);
-    checkpoints.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff202832));
+    addAndMakeVisible(checkpoints);
+    cpLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(description);
     save.onClick = [this] { flush(); };
     reloadProperties.onClick = [this]
@@ -68,10 +73,7 @@ TaskDetails::TaskDetails(arranger::WorkspaceModel& data, Execute run,
         if (const auto* task = model.findTask(taskId)) back(task->ownerPageId);
     };
     archiveButton.onClick = [this] { if (flush().wasOk()) archiveTask(taskId); };
-    addCheckpoint.onClick = [this] { promptCheckpoint(true); };
-    editCheckpoint.onClick = [this] { promptCheckpoint(false); };
-    removeCheckpoint.onClick = [this] { archiveCheckpoint(); };
-    archivedCheckpoints.onClick = [this] { refreshCheckpoints(); };
+
 }
 arranger::TaskProperties TaskDetails::fields() const
 {
@@ -113,11 +115,11 @@ juce::Result TaskDetails::bind(const juce::String& id)
     if (id != taskId)
     {
         const auto saved = flush(); if (saved.failed()) return saved;
-        if (id.isEmpty()) { taskId.clear(); return description.bind({}, {}, {}); }
+        if (id.isEmpty()) { taskId.clear(); checkpoints.setTasks({}, true); return description.bind({}, {}, {}); }
         const auto* task = model.findTask(id);
         if (!task || arranger::WorkspaceQueries::taskArchived(model, id)) return juce::Result::fail("Task is not editable.");
         taskId = id;
-        baseline = task->properties; showProperties(); archivedCheckpoints.setToggleState(false, juce::dontSendNotification);
+        baseline = task->properties; showProperties();
     }
     else if (id.isNotEmpty())
     {
@@ -142,115 +144,48 @@ void TaskDetails::timerCallback() { flush(); }
 void TaskDetails::resized()
 {
     auto area = getLocalBounds();
+    propertiesLabel.setBounds(area.removeFromTop(28));
     auto top = area.removeFromTop(34);
-    archiveButton.setBounds(top.removeFromRight(138).reduced(2));
-    owner.setBounds(top.removeFromRight(104).reduced(2));
-    save.setBounds(top.removeFromRight(96).reduced(2));
-    reloadProperties.setBounds(top.removeFromRight(108).reduced(2));
-    priority.setBounds(top.removeFromRight(60).reduced(2));
-    status.setBounds(top.removeFromRight(96).reduced(2));
+    priority.setBounds(top.removeFromRight(72).reduced(2));
+    status.setBounds(top.removeFromRight(110).reduced(2));
     name.setBounds(top.reduced(2));
-    auto noteRow = area.removeFromTop(56);
-    noteLabel.setBounds(noteRow.removeFromLeft(48));
-    notes.setBounds(noteRow.reduced(2));
+    auto noteRow = area.removeFromTop(62);
+    noteLabel.setBounds(noteRow.removeFromLeft(48)); notes.setBounds(noteRow.reduced(2));
     feedback.setBounds(area.removeFromBottom(26));
     area.removeFromTop(8);
-    auto cpArea = area.removeFromLeft(210);
-    cpLabel.setBounds(cpArea.removeFromTop(26));
-    addCheckpoint.setBounds(cpArea.removeFromTop(30).reduced(2));
-    archivedCheckpoints.setBounds(cpArea.removeFromBottom(28));
-    auto buttons = cpArea.removeFromBottom(32);
-    editCheckpoint.setBounds(buttons.removeFromLeft(96).reduced(2));
-    removeCheckpoint.setBounds(buttons.reduced(2));
-    checkpoints.setBounds(cpArea);
-    area.removeFromLeft(12);
-    description.setBounds(area);
-}
-const arranger::TaskCheckpoint* TaskDetails::selectedCheckpoint() const
-{
-    const int index = checkpoints.getSelectedRow();
-    if (index < 0 || index >= static_cast<int>(checkpointIds.size())) return nullptr;
-    if (const auto* task = model.findTask(taskId))
-        for (const auto& cp : task->checkpoints) if (cp.id == checkpointIds[static_cast<size_t>(index)]) return &cp;
-    return nullptr;
+    cpLabel.setBounds(area.removeFromTop(28));
+    checkpoints.setBounds(area.removeFromTop(juce::jmin(220, area.getHeight() / 2)));
+    area.removeFromTop(12); description.setBounds(area);
 }
 void TaskDetails::refreshCheckpoints()
 {
-    juce::String selectedId;
-    if (const auto* cp = selectedCheckpoint()) selectedId = cp->id;
-    checkpointIds.clear();
+    std::vector<arranger::TaskReference> refs;
     if (const auto* task = model.findTask(taskId))
     {
         const auto progress = arranger::WorkspaceQueries::taskProgress(*task);
-        cpLabel.setText(tr("Чек-поинты: ") + juce::String(progress.first) + "/" + juce::String(progress.second), juce::dontSendNotification);
-        for (const auto& cp : task->checkpoints)
-            if (cp.archivedAt.isNotEmpty() == archivedCheckpoints.getToggleState()) checkpointIds.push_back(cp.id);
+        cpLabel.setText(tr("Чек-поинты: ") + juce::String(progress.first) + "/" + juce::String(progress.second)
+            + tr(" · правый клик — действия задачи и добавление чек-поинта"), juce::dontSendNotification);
+        refs.push_back({{}, task->ownerPageId, taskId});
     }
-    checkpoints.updateContent(); checkpoints.deselectAllRows();
-    for (int i = 0; i < static_cast<int>(checkpointIds.size()); ++i) if (checkpointIds[static_cast<size_t>(i)] == selectedId) checkpoints.selectRow(i);
-    removeCheckpoint.setButtonText(archivedCheckpoints.getToggleState() ? tr("Вернуть") : tr("В архив"));
-    editCheckpoint.setEnabled(selectedCheckpoint() != nullptr && !archivedCheckpoints.getToggleState());
-    removeCheckpoint.setEnabled(selectedCheckpoint() != nullptr); checkpoints.repaint();
+    checkpoints.setTasks(std::move(refs), true);
 }
-int TaskDetails::getNumRows() { return static_cast<int>(checkpointIds.size()); }
-void TaskDetails::paintListBoxItem(int index, juce::Graphics& g, int width, int height, bool selected)
+void TaskDetails::mouseDown(const juce::MouseEvent& event)
 {
-    if (index < 0 || index >= getNumRows()) return;
-    const auto* task = model.findTask(taskId); if (!task) return;
-    for (const auto& cp : task->checkpoints) if (cp.id == checkpointIds[static_cast<size_t>(index)])
+    if (!event.mods.isPopupMenu()) return;
+    if (event.y >= cpLabel.getY())
     {
-        if (selected) { g.setColour(juce::Colour(0xff33475f)); g.fillRoundedRectangle(2, 1, static_cast<float>(width - 4), static_cast<float>(height - 2), 5); }
-        g.setColour(juce::Colour(0xffe6edf5)); g.setFont(juce::FontOptions(15.0f));
-        g.drawText(juce::String(arranger::label(cp.status)) + " | " + cp.name, 8, 2, width - 16, 28, juce::Justification::centredLeft, true);
-        g.setColour(juce::Colour(0xffa9bbce)); g.setFont(juce::FontOptions(13.0f));
-        g.drawText(cp.notes, 8, 30, width - 16, 26, juce::Justification::centredLeft, true);
-        break;
+        if (const auto* task = model.findTask(taskId))
+            checkpoints.showTaskMenu({{}, task->ownerPageId, taskId}, event.getScreenPosition());
+        return;
     }
-}
-void TaskDetails::selectedRowsChanged(int)
-{
-    editCheckpoint.setEnabled(selectedCheckpoint() != nullptr && !archivedCheckpoints.getToggleState());
-    removeCheckpoint.setEnabled(selectedCheckpoint() != nullptr);
-}
-void TaskDetails::listBoxItemDoubleClicked(int, const juce::MouseEvent&) { if (!archivedCheckpoints.getToggleState()) promptCheckpoint(false); }
-void TaskDetails::promptCheckpoint(bool create)
-{
-    if (flush().failed()) return;
-    const auto* selected = selectedCheckpoint();
-    if (!create && !selected) return;
-    const auto expected = create ? arranger::TaskCheckpoint{} : *selected;
-    const auto id = taskId;
-    auto* dialog = new juce::AlertWindow(create ? tr("Новый чек-поинт") : tr("Изменить чек-поинт"), {}, juce::MessageBoxIconType::NoIcon, this);
-    dialog->addTextEditor("name", expected.name, tr("Название"));
-    if (!create)
-    {
-        dialog->addTextEditor("notes", expected.notes, "Notes");
-        dialog->addComboBox("status", {"POOL", "TODO", "WIP", "DRAFT", "WAIT", "DONE", "BLOCKED"}, tr("Статус"));
-        dialog->getComboBoxComponent("status")->setSelectedId(statusId(expected.status));
-    }
-    dialog->addButton(tr("Сохранить"), 1, juce::KeyPress(juce::KeyPress::returnKey));
-    dialog->addButton(tr("Отмена"), 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    juce::PopupMenu menu;
+    menu.addItem(1, tr("Сохранить")); menu.addItem(2, tr("Перечитать свойства"));
+    menu.addItem(3, tr("К странице")); menu.addSeparator(); menu.addItem(4, tr("Архивировать задачу"));
     juce::Component::SafePointer<TaskDetails> safe(this);
-    dialog->enterModalState(true, juce::ModalCallbackFunction::create([safe, dialog, create, expected, id](int choice)
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [safe](int item)
     {
-        if (safe == nullptr || choice != 1) return;
-        const auto name = dialog->getTextEditorContents("name");
-        const auto result = safe->execute([&](arranger::WorkspaceCommands& cmd)
-        {
-            if (create) { juce::String created; return cmd.createCheckpoint(id, name, created); }
-            auto value = expected; value.name = name; value.notes = dialog->getTextEditorContents("notes");
-            value.status = statuses[juce::jlimit(1, 7, dialog->getComboBoxComponent("status")->getSelectedId()) - 1];
-            return cmd.updateCheckpoint(id, expected, value);
-        });
-        safe->setStatus(result); safe->refreshCheckpoints();
-    }), true);
-}
-void TaskDetails::archiveCheckpoint()
-{
-    if (flush().failed()) return;
-    const auto* cp = selectedCheckpoint(); if (!cp) return;
-    const auto id = taskId, cpId = cp->id; const bool restore = cp->archivedAt.isNotEmpty();
-    const auto result = execute([&](arranger::WorkspaceCommands& cmd)
-        { return restore ? cmd.restoreCheckpoint(id, cpId) : cmd.archiveCheckpoint(id, cpId); });
-    setStatus(result); refreshCheckpoints();
+        if (safe == nullptr) return;
+        if (item == 1) safe->save.onClick(); else if (item == 2) safe->reloadProperties.onClick();
+        else if (item == 3) safe->owner.onClick(); else if (item == 4) safe->archiveButton.onClick();
+    });
 }

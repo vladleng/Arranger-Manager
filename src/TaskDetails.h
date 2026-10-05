@@ -2,8 +2,9 @@
 #include <JuceHeader.h>
 #include "WorkspaceCommands.h"
 #include "BlockEditor.h"
+#include "TaskTree.h"
 
-class TaskDetails final : public juce::Component, private juce::Timer, private juce::ListBoxModel
+class TaskDetails final : public juce::Component, private juce::Timer
 {
 public:
     using Execute = std::function<juce::Result(const arranger::WorkspaceAction&)>;
@@ -12,19 +13,13 @@ public:
     juce::Result bind(const juce::String&);
     juce::Result flush();
     void resized() override;
+    void mouseDown(const juce::MouseEvent&) override;
 private:
-    int getNumRows() override;
-    void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
-    void listBoxItemDoubleClicked(int, const juce::MouseEvent&) override;
-    void selectedRowsChanged(int) override;
     void timerCallback() override;
     void refreshCheckpoints();
-    void promptCheckpoint(bool create);
-    void archiveCheckpoint();
     void setStatus(const juce::Result&);
     arranger::TaskProperties fields() const;
     void showProperties();
-    const arranger::TaskCheckpoint* selectedCheckpoint() const;
 
     arranger::WorkspaceModel& model;
     Execute execute;
@@ -34,11 +29,10 @@ private:
     bool loading = false;
     juce::TextEditor name, notes;
     juce::ComboBox status, priority;
-    juce::TextButton save, reloadProperties, owner, archiveButton, addCheckpoint, editCheckpoint, removeCheckpoint;
-    juce::ToggleButton archivedCheckpoints;
-    juce::Label noteLabel, cpLabel, feedback;
-    juce::ListBox checkpoints { "Checkpoints", this };
-    std::vector<juce::String> checkpointIds;
+    juce::TextButton save, reloadProperties, owner, archiveButton;
+    juce::Label propertiesLabel, noteLabel, cpLabel, feedback;
+    TaskTree checkpoints;
     BlockEditor description;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TaskDetails)
 };
+

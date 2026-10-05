@@ -1,6 +1,7 @@
 #include "WorkspaceController.h"
 #include "BlockEditorSession.h"
 #include "SongProgress.h"
+#include "TaskTreeRows.h"
 #include <iostream>
 static bool check(bool value, const char* message) { if (!value) std::cerr << message << '\n'; return value; }
 #define REQUIRE(value, message) do { if (!check((value), message)) return 1; } while (false)
@@ -65,6 +66,18 @@ int main()
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.updateCheckpoint(first, checkpoint, cpChanged); }).wasOk(), "Update checkpoint");
     REQUIRE(WorkspaceQueries::taskProgress(*model.findTask(first)) == std::make_pair(1, 1)
         && model.findTask(first)->properties.status == Status::wip, "Checkpoint incorrectly changes task status");
+    std::set<juce::String> expanded {"task:" + first, "checkpoint:" + cp};
+    const auto treeSource = model.toJson();
+    auto tree = taskTreeRows(model, WorkspaceQueries::allTasks(model), expanded);
+    REQUIRE(tree.size() == 6 && model.toJson() == treeSource, "Expansion mutated model or omitted notes/checkpoints");
+    REQUIRE(tree[3].checkpointId == cp && !tree[3].notes && tree[3].depth == 1
+        && tree[4].notes && tree[4].depth == 2, "Checkpoint nesting/identity");
+    auto collapsed = taskTreeRows(model, WorkspaceQueries::allTasks(model), {});
+    REQUIRE(collapsed.size() == 3, "Collapsed rows leak descendants");
+    auto detailRows = taskTreeRows(model, {ref}, expanded, true);
+    REQUIRE(detailRows.size() == 2 && detailRows[0].depth == 0 && detailRows[1].depth == 1, "Detail checkpoint expansion");
+    auto wrongRows = taskTreeRows(model, {wrong}, expanded);
+    REQUIRE(wrongRows.empty(), "Tree accepts wrong owner");
     BlockEditorSession editor;
     REQUIRE(editor.bind("task:" + first, [&]() { return std::optional(model.findTask(first)->blocks); },
         [&](const auto& expected, const auto& blocks) { return controller.execute([&](WorkspaceCommands& c) { return c.replaceTaskBlocks(first, expected, blocks); }); }).wasOk(), "Description binding");
@@ -75,6 +88,7 @@ int main()
     REQUIRE(editor.redo().wasOk(), "Description redo");
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.archiveCheckpoint(first, cp); }).wasOk(), "Archive checkpoint");
     REQUIRE(WorkspaceQueries::taskProgress(*model.findTask(first)) == std::make_pair(0, 0), "Archived checkpoint counted");
+    REQUIRE(taskTreeRows(model, {ref}, expanded).size() == 2, "Archived checkpoint leaks into expanded tree");
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.restoreCheckpoint(first, cp); }).wasOk()
         && model.findTask(first)->checkpoints[0].id == cp, "Restore checkpoint ID");
     const auto taskBeforeArchive = *model.findTask(first);
@@ -83,6 +97,7 @@ int main()
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.updateTask(first, changed, changed); }).failed(), "Archived task edited");
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.archivePage(root); }).wasOk(), "Archive owner");
     REQUIRE(WorkspaceQueries::allTasks(model).size() == 1, "Owner archive did not hide descendant tasks");
+    REQUIRE(taskTreeRows(model, {ref}, expanded).empty(), "Archived owner leaks expanded rows");
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.restoreTask(first); }).failed(), "Task restored under archived owner");
     REQUIRE(controller.execute([&](WorkspaceCommands& c) { return c.restorePage(root); }).wasOk(), "Restore page");
     REQUIRE(WorkspaceQueries::taskArchived(model, first) && !WorkspaceQueries::taskArchived(model, second), "Own task archive lost");
@@ -125,3 +140,4 @@ int main()
     std::cout << "General tasks, description, archives, migration and persistence passed\n";
     return 0;
 }
+

@@ -28,15 +28,6 @@ private:
         void listBoxItemDoubleClicked(int, const juce::MouseEvent&) override;
         WorkspaceShell& owner;
     };
-    struct TaskModel final : juce::ListBoxModel
-    {
-        explicit TaskModel(WorkspaceShell& value) : owner(value) {}
-        int getNumRows() override;
-        void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
-        void listBoxItemDoubleClicked(int, const juce::MouseEvent&) override;
-        void selectedRowsChanged(int) override;
-        WorkspaceShell& owner;
-    };
     struct ArchiveModel final : juce::ListBoxModel
     {
         explicit ArchiveModel(WorkspaceShell& value) : owner(value) {}
@@ -55,7 +46,7 @@ private:
     void restorePage();
     bool execute(const arranger::WorkspaceAction&);
     juce::String selectedPage() const;
-    void openTask(int);
+    void openTask(arranger::TaskReference);
     void promptTask();
     void archiveTask(const juce::String&);
     void report(const juce::Result&);
@@ -70,12 +61,13 @@ private:
     std::vector<arranger::TaskReference> taskReferences;
     std::vector<juce::String> archived;
     NavModel navModel { *this };
-    TaskModel taskModel { *this };
     ArchiveModel archiveModel { *this };
-    juce::ListBox nav { "Pages", &navModel }, tasks { "All tasks", &taskModel }, archive { "Archive", &archiveModel };
+    juce::ListBox nav { "Pages", &navModel }, archive { "Archive", &archiveModel };
+    TaskTree tasks;
     juce::Label brand, title, breadcrumb, description, empty;
-    juce::TextButton addPage, addChild, rename, move, archiveButton, restore, openSource, newTask, blocksTab, tasksTab;
+    juce::TextButton addPage, addChild, rename, move, archiveButton, restore, blocksTab, tasksTab;
     BlockEditor blockEditor;
     std::unique_ptr<TaskDetails> taskDetails;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WorkspaceShell)
 };
+
