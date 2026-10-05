@@ -142,7 +142,19 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
     g.setColour(row.checkpointId.isEmpty() ? juce::Colour(0xff7aaee9) : juce::Colour(0xff38ba7a));
     g.setFont(juce::FontOptions(16.0f));
     const int nameX = columns.name + indent;
-    g.drawText(row.checkpointId.isEmpty() ? tr("▤") : tr("☑"), nameX, 0, 24, height, juce::Justification::centredLeft);
+    if (row.checkpointId.isEmpty()) g.drawText(tr("▤"), nameX, 0, 24, height, juce::Justification::centredLeft);
+    else
+    {
+        const float iconX = static_cast<float>(nameX + 3), iconY = static_cast<float>(height / 2 - 7);
+        g.setColour(status == arranger::Status::done ? juce::Colour(0xff38ba7a) : juce::Colour(0xff8495a6));
+        g.drawRoundedRectangle(iconX, iconY, 14, 14, 3, 1.5f);
+        if (status == arranger::Status::done)
+        {
+            juce::Path tick; tick.startNewSubPath(iconX + 3, iconY + 7);
+            tick.lineTo(iconX + 6, iconY + 10); tick.lineTo(iconX + 11, iconY + 4);
+            g.strokePath(tick, juce::PathStrokeType(1.8f));
+        }
+    }
     g.setColour(juce::Colour(0xffedf1f5));
     g.drawText(name, nameX + 28, 0, juce::jmax(0, columns.progress - nameX - 36), height, juce::Justification::centredLeft, true);
     const int percent = total > 0 ? done * 100 / total : 0;
