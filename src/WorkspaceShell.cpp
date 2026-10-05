@@ -34,7 +34,6 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     rename.setButtonText(text("Переименовать"));
     move.setButtonText(text("Переместить"));
     archiveButton.setButtonText(text("В архив"));
-    restore.setButtonText(text("Восстановить"));
     for (auto* tab : { &blocksTab, &tasksTab })
     {
         tab->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff192028));
@@ -44,7 +43,7 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     addPage.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff23476f));
     blocksTab.setButtonText(text("Блоки"));
     tasksTab.setButtonText(text("Задачи"));
-    for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &restore, &blocksTab, &tasksTab }) addAndMakeVisible(button);
+    for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &blocksTab, &tasksTab }) addAndMakeVisible(button);
     for (auto* list : { &nav, &archive })
     {
         addAndMakeVisible(list);
@@ -70,7 +69,6 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     rename.onClick = [this] { promptPage({}, selectedPage()); };
     move.onClick = [this] { showMoveMenu(selectedPage(), move.getScreenBounds().getBottomLeft()); };
     archiveButton.onClick = [this] { archivePage(selectedPage()); };
-    restore.onClick = [this] { restorePage(); };
     blocksTab.onClick = [this] { select("page:" + selectedPage()); };
     tasksTab.onClick = [this] { select("pageTasks:" + selectedPage()); };
     refresh();
@@ -95,7 +93,6 @@ void WorkspaceShell::resized()
     breadcrumb.setBounds(content.removeFromTop(28));
     title.setBounds(content.removeFromTop(48));
     description.setBounds(content.removeFromTop(32));
-    restore.setBounds(title.getX(), description.getBottom() + 3, 164, 30);
     content.removeFromTop(8);
     auto tabs = content.removeFromTop(32);
     blocksTab.setBounds(tabs.removeFromLeft(90).reduced(2));
@@ -188,8 +185,6 @@ void WorkspaceShell::showDetails()
     for (auto* button : { &blocksTab, &tasksTab }) button->setVisible(ordinary);
     blocksTab.setToggleState(ordinary && !pageTasks, juce::dontSendNotification);
     tasksTab.setToggleState(ordinary && pageTasks, juce::dontSendNotification);
-    restore.setVisible(archivedView);
-    restore.setEnabled(archive.getSelectedRow() >= 0 && archive.getSelectedRow() < static_cast<int>(archived.size()));
     blockEditor.setVisible(ordinary && !pageTasks);
     if (ordinary && !pageTasks)
     {
@@ -218,7 +213,7 @@ void WorkspaceShell::showDetails()
     {
         breadcrumb.setText(text("Рабочее пространство"), juce::dontSendNotification);
         title.setText(text("Архив"), juce::dontSendNotification);
-        description.setText(text("Страницы и задачи сохраняют содержимое. Для задачи сначала восстановите страницу-владельца."), juce::dontSendNotification);
+        description.setText(text("Правый клик — восстановить. Для задачи сначала восстановите страницу-владельца."), juce::dontSendNotification);
         if (archived.empty()) { empty.setText(text("Архив пуст."), juce::dontSendNotification); empty.setVisible(true); }
     }
     else if (ordinary)
@@ -333,11 +328,9 @@ void WorkspaceShell::archivePage(const juce::String& id)
 {
     if (execute([&](arranger::WorkspaceCommands& commands) { return commands.archivePage(id); })) select("view:archive");
 }
-void WorkspaceShell::restorePage()
+void WorkspaceShell::restoreArchived(const juce::String& value)
 {
-    const int index = archive.getSelectedRow();
-    if (index < 0 || index >= static_cast<int>(archived.size())) return;
-    const auto id = archived[static_cast<size_t>(index)];
+    const auto id = value;
     if (id.startsWith("task:"))
     {
         if (execute([&](arranger::WorkspaceCommands& cmd) { return cmd.restoreTask(id.substring(5)); })) select(id);
@@ -434,8 +427,21 @@ void WorkspaceShell::ArchiveModel::paintListBoxItem(int index, juce::Graphics& g
     g.setColour(juce::Colour(0xffa9bbce)); g.setFont(juce::FontOptions(13.0f));
     g.drawText(arranger::WorkspaceQueries::breadcrumb(owner.model, ownerId), 12, 29, width - 24, height - 30, juce::Justification::centredLeft, true);
 }
-void WorkspaceShell::ArchiveModel::selectedRowsChanged(int index)
+void WorkspaceShell::ArchiveModel::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
-    owner.restore.setEnabled(index >= 0 && index < getNumRows());
+    if (!event.mods.isPopupMenu() || index < 0 || index >= getNumRows()) return;
+    const auto id = owner.archived[static_cast<size_t>(index)];
+    juce::PopupMenu menu; menu.addItem(1, text("Восстановить"));
+    juce::Component::SafePointer<WorkspaceShell> safe(&owner);
+    const auto point = event.getScreenPosition();
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&owner.archive)
+        .withTargetScreenArea({point.x, point.y, 1, 1}), [safe, id](int choice)
+    {
+        if (safe != nullptr && choice == 1) safe->restoreArchived(id);
+    });
 }
-
+void WorkspaceShell::ArchiveModel::listBoxItemDoubleClicked(int index, const juce::MouseEvent& event)
+{
+    if (!event.mods.isPopupMenu() && index >= 0 && index < getNumRows())
+        owner.restoreArchived(owner.archived[static_cast<size_t>(index)]);
+}

@@ -33,7 +33,8 @@ private:
         explicit ArchiveModel(WorkspaceShell& value) : owner(value) {}
         int getNumRows() override;
         void paintListBoxItem(int, juce::Graphics&, int, int, bool) override;
-        void selectedRowsChanged(int) override;
+        void listBoxItemClicked(int, const juce::MouseEvent&) override;
+        void listBoxItemDoubleClicked(int, const juce::MouseEvent&) override;
         WorkspaceShell& owner;
     };
 
@@ -43,7 +44,7 @@ private:
     void promptPage(const juce::String& parentId, const juce::String& renameId = {});
     void showMoveMenu(const juce::String&, juce::Point<int>);
     void archivePage(const juce::String&);
-    void restorePage();
+    void restoreArchived(const juce::String&);
     bool execute(const arranger::WorkspaceAction&);
     juce::String selectedPage() const;
     void openTask(arranger::TaskReference);
@@ -65,7 +66,7 @@ private:
     juce::ListBox nav { "Pages", &navModel }, archive { "Archive", &archiveModel };
     TaskTree tasks;
     juce::Label brand, title, breadcrumb, description, empty;
-    juce::TextButton addPage, addChild, rename, move, archiveButton, restore, blocksTab, tasksTab;
+    juce::TextButton addPage, addChild, rename, move, archiveButton, blocksTab, tasksTab;
     BlockEditor blockEditor;
     std::unique_ptr<TaskDetails> taskDetails;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WorkspaceShell)
