@@ -23,7 +23,7 @@ void pill(juce::Graphics& g, juce::String caption, juce::Colour colour, int x, i
         if (icons && iconId) icons->draw(iconId, g, {static_cast<float>(x + 7), static_cast<float>(y + 4), 16, 16});
         else { g.setColour(mr::colour(mr::tokens::meta)); g.drawEllipse(static_cast<float>(x + 10), static_cast<float>(y + 8), 9, 9, 1); }
     }
-    g.setColour(mr::colour(mr::tokens::bright).brighter(0.18f)); g.setFont(juce::FontOptions(14.0f));
+    g.setColour(juce::Colours::white); g.setFont(juce::FontOptions(14.0f));
     g.drawText(caption, x + (dot ? 23 : 0), y, width - (dot ? 27 : 0), 25, dot ? juce::Justification::centredLeft : juce::Justification::centred, true);
 }
 const arranger::TaskCheckpoint* checkpoint(const arranger::WorkspaceModel& model, const arranger::TaskTreeRow& row)
