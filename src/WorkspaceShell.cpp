@@ -5,8 +5,8 @@ namespace
 juce::String text(const char* value) { return juce::String::fromUTF8(value); }
 void rowBackground(juce::Graphics& g, int width, int height, bool selected)
 {
-    if (selected) { g.setColour(juce::Colour(0xff33475f)); g.fillRoundedRectangle(2.0f, 1.0f, static_cast<float>(width - 4), static_cast<float>(height - 2), 5.0f); }
-    g.setColour(juce::Colour(0xffe6edf5));
+    if (selected) { g.setColour(mr::colour(mr::tokens::selected)); g.fillRoundedRectangle(2.0f, 1.0f, static_cast<float>(width - 4), static_cast<float>(height - 2), 5.0f); }
+    g.setColour(mr::colour(mr::tokens::bright));
     g.setFont(juce::FontOptions(15.0f));
 }
 }
@@ -19,16 +19,18 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
           [this](arranger::TaskReference ref) { openTask(ref); }, [this] { refresh(); },
           [this](juce::String id) { archiveTask(id); }, [this] { promptTask(); })
 {
+    setLookAndFeel(&theme);
+    hub->setLookAndFeel(&juce::LookAndFeel::getDefaultLookAndFeel()); // Preserve legacy DAW appearance.
     brand.setText("Arranger Manager", juce::dontSendNotification);
     brand.setFont(juce::FontOptions(19.0f, juce::Font::bold));
     title.setFont(juce::FontOptions(26.0f, juce::Font::bold));
     for (auto* label : { &brand, &title, &breadcrumb, &description, &empty })
     {
         addAndMakeVisible(label);
-        label->setColour(juce::Label::textColourId, juce::Colour(0xffdce6f1));
+        label->setColour(juce::Label::textColourId, mr::colour(mr::tokens::bright));
     }
-    breadcrumb.setColour(juce::Label::textColourId, juce::Colour(0xff9eafc3));
-    description.setColour(juce::Label::textColourId, juce::Colour(0xffb8c5d5));
+    breadcrumb.setColour(juce::Label::textColourId, mr::colour(mr::tokens::muted));
+    description.setColour(juce::Label::textColourId, mr::colour(mr::tokens::meta));
     addPage.setButtonText(text("+ Страница"));
     addChild.setButtonText(text("+ Вложенная"));
     rename.setButtonText(text("Переименовать"));
@@ -36,11 +38,11 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     archiveButton.setButtonText(text("В архив"));
     for (auto* tab : { &blocksTab, &tasksTab })
     {
-        tab->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff192028));
-        tab->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff23476f));
-        tab->setColour(juce::TextButton::textColourOnId, juce::Colour(0xffecf3fb));
+        tab->setColour(juce::TextButton::buttonColourId, mr::colour(mr::tokens::panel));
+        tab->setColour(juce::TextButton::buttonOnColourId, mr::colour(mr::tokens::selected));
+        tab->setColour(juce::TextButton::textColourOnId, mr::colour(mr::tokens::bright));
     }
-    addPage.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff23476f));
+    addPage.setColour(juce::TextButton::buttonColourId, mr::colour(mr::tokens::selected));
     blocksTab.setButtonText(text("Блоки"));
     tasksTab.setButtonText(text("Задачи"));
     for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &blocksTab, &tasksTab }) addAndMakeVisible(button);
@@ -48,7 +50,7 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     {
         addAndMakeVisible(list);
         list->setRowHeight(list == &nav ? 44 : 52);
-        list->setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff192028));
+        list->setColour(juce::ListBox::backgroundColourId, mr::colour(mr::tokens::panel));
         list->setMultipleSelectionEnabled(false);
     }
     addAndMakeVisible(tasks);
@@ -74,12 +76,18 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     refresh();
 }
 
+WorkspaceShell::~WorkspaceShell()
+{
+    juce::PopupMenu::dismissAllActiveMenus();
+    setLookAndFeel(nullptr);
+}
+
 void WorkspaceShell::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff12181e));
-    g.setColour(juce::Colour(0xff192028));
+    g.fillAll(mr::colour(mr::tokens::canvas));
+    g.setColour(mr::colour(mr::tokens::panel));
     g.fillRect(0, 0, 240, getHeight());
-    g.setColour(juce::Colour(0xff2b3540));
+    g.setColour(mr::colour(mr::tokens::outline));
     g.drawVerticalLine(240, 0.0f, static_cast<float>(getHeight()));
 }
 
@@ -283,7 +291,7 @@ void WorkspaceShell::promptPage(const juce::String& parentId, const juce::String
 
 void WorkspaceShell::showPageMenu(const juce::String& id, juce::Point<int> position)
 {
-    juce::PopupMenu menu;
+    juce::PopupMenu menu; menu.setLookAndFeel(&getLookAndFeel());
     menu.addItem(1, text("Новая вложенная страница"));
     menu.addItem(2, text("Переименовать"));
     menu.addItem(3, text("Переместить"));
@@ -304,7 +312,7 @@ void WorkspaceShell::showPageMenu(const juce::String& id, juce::Point<int> posit
 void WorkspaceShell::showMoveMenu(const juce::String& id, juce::Point<int> position)
 {
     if (id.isEmpty()) return;
-    juce::PopupMenu menu;
+    juce::PopupMenu menu; menu.setLookAndFeel(&getLookAndFeel());
     menu.addItem(1, text("На верхний уровень"));
     std::vector<juce::String> targets;
     for (const auto& row : arranger::WorkspaceQueries::activePages(model))
@@ -424,14 +432,14 @@ void WorkspaceShell::ArchiveModel::paintListBoxItem(int index, juce::Graphics& g
         title = text("Страница: ") + page->title; ownerId = page->id;
     }
     g.drawText(title, 12, 2, width - 24, 26, juce::Justification::centredLeft, true);
-    g.setColour(juce::Colour(0xffa9bbce)); g.setFont(juce::FontOptions(13.0f));
+    g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(13.0f));
     g.drawText(arranger::WorkspaceQueries::breadcrumb(owner.model, ownerId), 12, 29, width - 24, height - 30, juce::Justification::centredLeft, true);
 }
 void WorkspaceShell::ArchiveModel::listBoxItemClicked(int index, const juce::MouseEvent& event)
 {
     if (!event.mods.isPopupMenu() || index < 0 || index >= getNumRows()) return;
     const auto id = owner.archived[static_cast<size_t>(index)];
-    juce::PopupMenu menu; menu.addItem(1, text("Восстановить"));
+    juce::PopupMenu menu; menu.setLookAndFeel(&owner.getLookAndFeel()); menu.addItem(1, text("Восстановить"));
     juce::Component::SafePointer<WorkspaceShell> safe(&owner);
     const auto point = event.getScreenPosition();
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&owner.archive)

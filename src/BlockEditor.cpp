@@ -1,4 +1,5 @@
 #include "BlockEditor.h"
+#include "MRManagerStyle.h"
 
 namespace
 {
@@ -38,24 +39,24 @@ BlockEditor::BlockEditor()
     for (auto* label : { &nameLabel, &typeLabel, &textLabel, &urlLabel, &status, &hint })
     {
         addAndMakeVisible(label);
-        label->setColour(juce::Label::textColourId, juce::Colour(0xffb8c5d5));
+        label->setColour(juce::Label::textColourId, mr::colour(mr::tokens::meta));
     }
     for (auto* field : { &nameField, &textField, &urlField })
     {
         addAndMakeVisible(field);
         field->setFont(juce::FontOptions(17.0f));
-        field->setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff202832));
-        field->setColour(juce::TextEditor::textColourId, juce::Colour(0xffe6edf5));
+        field->setColour(juce::TextEditor::backgroundColourId, mr::colour(mr::tokens::item));
+        field->setColour(juce::TextEditor::textColourId, mr::colour(mr::tokens::bright));
         field->onTextChange = [this] { stageFields(); };
         field->addKeyListener(this);
     }
     textField.setMultiLine(true);
     textField.setReturnKeyStartsNewLine(true);
-    nameField.setTextToShowWhenEmpty(tr("Необязательное имя"), juce::Colour(0xff8b9cad));
-    urlField.setTextToShowWhenEmpty("https://...", juce::Colour(0xff8b9cad));
+    nameField.setTextToShowWhenEmpty(tr("Необязательное имя"), mr::colour(mr::tokens::muted));
+    urlField.setTextToShowWhenEmpty("https://...", mr::colour(mr::tokens::muted));
     addAndMakeVisible(list);
     list.setRowHeight(64);
-    list.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff202832));
+    list.setColour(juce::ListBox::backgroundColourId, mr::colour(mr::tokens::item));
     list.addKeyListener(this);
     addKeyListener(this);
     add.onClick = [this] { addBlock(); };
@@ -93,7 +94,7 @@ BlockEditor::BlockEditor()
     };
     refreshRows(true);
 }
-void BlockEditor::paint(juce::Graphics& g) { g.fillAll(juce::Colour(0xff1d232b)); }
+void BlockEditor::paint(juce::Graphics& g) { g.fillAll(mr::colour(mr::tokens::canvas)); }
 void BlockEditor::resized()
 {
     auto area = getLocalBounds();
@@ -152,7 +153,7 @@ void BlockEditor::updateStatus(const juce::Result& result)
 {
     status.setText(result.failed() ? tr("Не сохранено: ") + result.getErrorMessage()
         : session.dirty() ? tr("Изменения ожидают сохранения…") : tr("Сохранено"), juce::dontSendNotification);
-    status.setColour(juce::Label::textColourId, result.failed() ? juce::Colour(0xffffab77) : juce::Colour(0xff9eafc3));
+    status.setColour(juce::Label::textColourId, result.failed() ? mr::colour(mr::tokens::blockedDot) : mr::colour(mr::tokens::muted));
     undoButton.setEnabled(session.canUndo());
     redoButton.setEnabled(session.canRedo());
 }
@@ -162,15 +163,15 @@ void BlockEditor::paintListBoxItem(int index, juce::Graphics& g, int width, int 
 {
     if (index < 0 || index >= getNumRows()) return;
     const auto& block = session.blocks()[static_cast<size_t>(index)];
-    if (selectedRow) { g.setColour(juce::Colour(0xff33475f)); g.fillRoundedRectangle(2, 1, static_cast<float>(width - 4), static_cast<float>(height - 2), 5); }
-    g.setColour(juce::Colour(0xffe6edf5));
+    if (selectedRow) { g.setColour(mr::colour(mr::tokens::selected)); g.fillRoundedRectangle(2, 1, static_cast<float>(width - 4), static_cast<float>(height - 2), 5); }
+    g.setColour(mr::colour(mr::tokens::bright));
     g.setFont(juce::FontOptions(block.type == "heading" ? 18.0f : 15.0f));
     auto title = block.name.isNotEmpty() ? block.name : block.text.upToFirstOccurrenceOf("\n", false, false);
     if (title.isEmpty()) title = tr("Новый блок");
     if (block.type == "checklist") title = (block.checked ? tr("☑ ") : tr("☐ ")) + title;
     if (block.type == "list") title = tr("• ") + title;
     g.drawText(title, 10, 2, width - 20, 30, juce::Justification::centredLeft, true);
-    g.setColour(juce::Colour(0xff9eafc3)); g.setFont(juce::FontOptions(13.0f));
+    g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(13.0f));
     const char* labels[] = {"Текст", "Заголовок", "Список", "Чек-лист", "Ссылка"};
     g.drawText(juce::String(index + 1) + " · " + tr(labels[typeId(block.type) - 1]), 10, 33, width - 20, 24, juce::Justification::centredLeft, true);
 }

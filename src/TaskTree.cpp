@@ -10,28 +10,20 @@ int statusId(arranger::Status value)
     for (int i = 0; i < 7; ++i) if (statuses[i] == value) return i + 1;
     return 2;
 }
-juce::Colour statusColour(arranger::Status value)
-{
-    switch (value)
-    {
-        case arranger::Status::done: return juce::Colour(0xff38ba7a);
-        case arranger::Status::wip: return juce::Colour(0xff429ded);
-        case arranger::Status::wait: return juce::Colour(0xffd7a535);
-        case arranger::Status::blocked: return juce::Colour(0xffdf6464);
-        case arranger::Status::draft: return juce::Colour(0xffa48be0);
-        default: return juce::Colour(0xff9299a1);
-    }
-}
 struct Columns
 {
     int name = 176, progress, priority, source;
     explicit Columns(int width) : progress(juce::jmax(290, width - 390)), priority(progress + 150), source(priority + 74) {}
 };
-void pill(juce::Graphics& g, juce::String caption, juce::Colour colour, int x, int y, int width, bool dot)
+void pill(juce::Graphics& g, juce::String caption, juce::Colour colour, int x, int y, int width, bool dot, mr::Icons* icons = nullptr, const char* iconId = nullptr)
 {
-    g.setColour(colour.withAlpha(0.35f)); g.fillRoundedRectangle(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), 25, 12);
-    if (dot) { g.setColour(colour); g.fillEllipse(static_cast<float>(x + 10), static_cast<float>(y + 8), 9, 9); }
-    g.setColour(juce::Colour(0xffedf1f5)); g.setFont(juce::FontOptions(14.0f));
+    g.setColour(colour); g.fillRoundedRectangle(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), 25, 12);
+    if (dot)
+    {
+        if (icons && iconId) icons->draw(iconId, g, {static_cast<float>(x + 7), static_cast<float>(y + 4), 16, 16});
+        else { g.setColour(mr::colour(mr::tokens::meta)); g.drawEllipse(static_cast<float>(x + 10), static_cast<float>(y + 8), 9, 9, 1); }
+    }
+    g.setColour(mr::colour(mr::tokens::bright).brighter(0.18f)); g.setFont(juce::FontOptions(14.0f));
     g.drawText(caption, x + (dot ? 23 : 0), y, width - (dot ? 27 : 0), 25, dot ? juce::Justification::centredLeft : juce::Justification::centred, true);
 }
 const arranger::TaskCheckpoint* checkpoint(const arranger::WorkspaceModel& model, const arranger::TaskTreeRow& row)
@@ -62,7 +54,7 @@ TaskTree::TaskTree(arranger::WorkspaceModel& data, Execute run, std::function<bo
       changed(std::move(notify)), create(std::move(newTask)), archive(std::move(archiveTask))
 {
     addAndMakeVisible(list); list.setRowHeight(44); list.setMultipleSelectionEnabled(false);
-    list.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff12181e));
+    list.setColour(juce::ListBox::backgroundColourId, mr::colour(mr::tokens::canvas));
     list.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     setWantsKeyboardFocus(true);
 }
@@ -81,10 +73,10 @@ void TaskTree::rebuild()
 }
 void TaskTree::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff12181e));
+    g.fillAll(mr::colour(mr::tokens::canvas));
     const Columns columns(list.getVisibleContentWidth());
-    g.setColour(juce::Colour(0xff263039)); g.drawHorizontalLine(39, 0, static_cast<float>(getWidth()));
-    g.setColour(juce::Colour(0xff9eabb9)); g.setFont(juce::FontOptions(14.0f));
+    g.setColour(mr::colour(mr::tokens::outline)); g.drawHorizontalLine(39, 0, static_cast<float>(getWidth()));
+    g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(14.0f));
     g.drawText("Status", 46, 0, 100, 39, juce::Justification::centredLeft);
     g.drawText(checkpointsOnly ? tr("Чек-поинт") : tr("Задача"), columns.name, 0, columns.progress - columns.name, 39, juce::Justification::centredLeft);
     g.drawText(tr("Прогресс"), columns.progress + 12, 0, 135, 39, juce::Justification::centredLeft);
@@ -92,7 +84,7 @@ void TaskTree::paint(juce::Graphics& g)
     if (!checkpointsOnly) g.drawText(tr("Страница"), columns.source + 12, 0, getWidth() - columns.source - 16, 39, juce::Justification::centredLeft);
     if (rows.empty())
     {
-        g.setColour(juce::Colour(0xff8393a4));
+        g.setColour(mr::colour(mr::tokens::muted));
         g.drawText(tr("Пока пусто. Правый клик — добавить задачу или чек-поинт."), 18, 55, getWidth() - 36, 50, juce::Justification::centredLeft, true);
     }
 }
@@ -104,17 +96,17 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
     const auto& row = rows[static_cast<size_t>(index)]; const Columns columns(width);
     if (selected)
     {
-        g.setColour(juce::Colour(0xff20344c)); g.fillRoundedRectangle(1, 1, static_cast<float>(width - 2), static_cast<float>(height - 2), 5);
-        g.setColour(juce::Colour(0xff3e699d)); g.drawRoundedRectangle(1, 1, static_cast<float>(width - 2), static_cast<float>(height - 2), 5, 1);
+        g.setColour(mr::colour(mr::tokens::selected)); g.fillRoundedRectangle(1, 1, static_cast<float>(width - 2), static_cast<float>(height - 2), 5);
+        g.setColour(mr::colour(mr::tokens::focus)); g.drawRoundedRectangle(1, 1, static_cast<float>(width - 2), static_cast<float>(height - 2), 5, 1);
     }
-    g.setColour(juce::Colour(0xff263039)); g.drawHorizontalLine(height - 1, 0, static_cast<float>(width));
+    g.setColour(mr::colour(mr::tokens::outline)); g.drawHorizontalLine(height - 1, 0, static_cast<float>(width));
     for (int depth = 0; depth < row.depth; ++depth) g.drawVerticalLine(18 + depth * 18, 0, static_cast<float>(height));
     const int indent = row.depth * 18;
     if (row.depth > 0) g.drawHorizontalLine(height / 2, static_cast<float>(indent), static_cast<float>(indent + 10));
     if (row.notes)
     {
         auto caption = note(model, row); if (caption.isEmpty()) caption = tr("Заметок пока нет");
-        g.setColour(juce::Colour(0xffa5b4c3)); g.setFont(juce::FontOptions(13.0f));
+        g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(13.0f));
         g.drawFittedText(caption, 48 + indent, 4, width - 64 - indent, height - 8, juce::Justification::centredLeft, 2, 1.0f);
         return;
     }
@@ -122,7 +114,7 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
     const float x = static_cast<float>(12 + indent), y = static_cast<float>(height / 2);
     if (expanded.contains(row.key())) { arrow.startNewSubPath(x, y - 3); arrow.lineTo(x + 12, y - 3); arrow.lineTo(x + 6, y + 4); }
     else { arrow.startNewSubPath(x + 3, y - 6); arrow.lineTo(x + 3, y + 6); arrow.lineTo(x + 10, y); }
-    arrow.closeSubPath(); g.setColour(juce::Colour(0xffdce6ef)); g.fillPath(arrow);
+    arrow.closeSubPath(); g.setColour(mr::colour(mr::tokens::bright)); g.fillPath(arrow);
     auto status = arranger::WorkspaceQueries::taskStatus(model, row.reference);
     auto name = arranger::WorkspaceQueries::taskName(model, row.reference);
     int priority = 0, done = 0, total = 0;
@@ -138,15 +130,15 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
         else for (const auto& cp : task->checkpoints) if (cp.id == row.checkpointId) { name = cp.name; status = cp.status; }
     }
     if (row.checkpointId.isNotEmpty()) { total = 1; done = status == arranger::Status::done ? 1 : 0; }
-    pill(g, arranger::label(status), statusColour(status), 40 + indent, 9, 92, true);
-    g.setColour(row.checkpointId.isEmpty() ? juce::Colour(0xff7aaee9) : juce::Colour(0xff38ba7a));
+    pill(g, arranger::label(status), mr::statusFill(status), 40 + indent, 9, 92, true, &icons, mr::statusIcon(status));
+    g.setColour(row.checkpointId.isEmpty() ? mr::colour(mr::tokens::meta) : mr::colour(mr::tokens::progressFill));
     g.setFont(juce::FontOptions(16.0f));
     const int nameX = columns.name + indent;
-    if (row.checkpointId.isEmpty()) g.drawText(tr("▤"), nameX, 0, 24, height, juce::Justification::centredLeft);
+    if (row.checkpointId.isEmpty()) icons.draw("manager/actions/organizer", g, {static_cast<float>(nameX), static_cast<float>(height / 2 - 9), 18, 18});
     else
     {
         const float iconX = static_cast<float>(nameX + 3), iconY = static_cast<float>(height / 2 - 7);
-        g.setColour(status == arranger::Status::done ? juce::Colour(0xff38ba7a) : juce::Colour(0xff8495a6));
+        g.setColour(status == arranger::Status::done ? mr::colour(mr::tokens::progressFill) : mr::colour(mr::tokens::muted));
         g.drawRoundedRectangle(iconX, iconY, 14, 14, 3, 1.5f);
         if (status == arranger::Status::done)
         {
@@ -155,25 +147,24 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
             g.strokePath(tick, juce::PathStrokeType(1.8f));
         }
     }
-    g.setColour(juce::Colour(0xffedf1f5));
+    g.setColour(mr::colour(mr::tokens::bright));
     g.drawText(name, nameX + 28, 0, juce::jmax(0, columns.progress - nameX - 36), height, juce::Justification::centredLeft, true);
     const int percent = total > 0 ? done * 100 / total : 0;
-    g.setFont(juce::FontOptions(12.0f)); g.setColour(juce::Colour(0xffa4afbd));
+    g.setFont(juce::FontOptions(12.0f)); g.setColour(mr::colour(mr::tokens::meta));
     g.drawText(juce::String(percent) + "%", columns.progress + 10, 0, 36, height, juce::Justification::centredLeft);
-    g.setColour(juce::Colour(0xff252e37)); g.fillRoundedRectangle(static_cast<float>(columns.progress + 52), 19, 84, 7, 3);
-    if (percent > 0) { g.setColour(juce::Colour(0xff38ba7a)); g.fillRoundedRectangle(static_cast<float>(columns.progress + 52), 19, 84.0f * static_cast<float>(percent) / 100.0f, 7, 3); }
+    g.setColour(mr::colour(mr::tokens::progressBg)); g.fillRoundedRectangle(static_cast<float>(columns.progress + 52), 19, 84, 7, 3);
+    if (percent > 0) { g.setColour(mr::colour(mr::tokens::progressFill)); g.fillRoundedRectangle(static_cast<float>(columns.progress + 52), 19, 84.0f * static_cast<float>(percent) / 100.0f, 7, 3); }
     if (priority > 0 && row.checkpointId.isEmpty())
     {
-        const juce::Colour colours[] = {juce::Colour(0xffdb6262), juce::Colour(0xffd8994c), juce::Colour(0xff429ded), juce::Colour(0xff38ba7a)};
-        pill(g, "P" + juce::String(priority), colours[priority - 1], columns.priority + 12, 9, 42, false);
+        pill(g, "P" + juce::String(priority), mr::priorityFill(priority), columns.priority + 12, 9, 42, false);
     }
     if (!checkpointsOnly && row.checkpointId.isEmpty())
     {
-        g.setColour(juce::Colour(0xff93a2b4)); g.setFont(juce::FontOptions(12.0f));
+        g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(12.0f));
         g.drawText(arranger::WorkspaceQueries::breadcrumb(model, row.reference.ownerPageId), columns.source + 12, 0,
             juce::jmax(0, width - columns.source - 20), height, juce::Justification::centredLeft, true);
     }
-    g.setColour(juce::Colour(0xff263039));
+    g.setColour(mr::colour(mr::tokens::outline));
     for (const int column : {columns.name - 8, columns.progress, columns.priority, columns.source})
         g.drawVerticalLine(column, 0, static_cast<float>(height));
 }
@@ -207,7 +198,7 @@ void TaskTree::showBackgroundMenu(juce::Point<int> position)
 {
     if (checkpointsOnly && !references.empty()) { showTaskMenu(references.front(), position); return; }
     if (!create) return;
-    juce::PopupMenu menu; menu.addItem(1, tr("Создать задачу"));
+    juce::PopupMenu menu; menu.setLookAndFeel(&getLookAndFeel()); menu.addItem(1, tr("Создать задачу"));
     juce::Component::SafePointer<TaskTree> safe(this);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withTargetScreenArea({position.x, position.y, 1, 1}),
         [safe](int item) { if (safe != nullptr && item == 1 && safe->create) safe->create(); });
@@ -225,7 +216,7 @@ void TaskTree::showMenu(arranger::TaskTreeRow row, juce::Point<int> position)
     if (before && !before()) return;
     const auto* task = arranger::WorkspaceQueries::generalTask(model, row.reference);
     const auto* cp = checkpoint(model, row);
-    juce::PopupMenu menu;
+    juce::PopupMenu menu; menu.setLookAndFeel(&getLookAndFeel());
     if (open) menu.addItem(1, task ? tr("Открыть задачу") : tr("Открыть песню в DAW"));
     if (task)
     {

@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "WorkspaceCommands.h"
 #include "TaskTreeRows.h"
+#include "MRManagerStyle.h"
 
 class TaskTree final : public juce::Component, private juce::ListBoxModel
 {
@@ -39,6 +40,7 @@ private:
     std::vector<arranger::TaskTreeRow> rows;
     std::set<juce::String> expanded;
     bool checkpointsOnly = false;
+    mr::Icons icons;
     juce::ListBox list {"Tasks and checkpoints", this};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TaskTree)
 };
