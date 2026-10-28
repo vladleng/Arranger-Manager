@@ -113,7 +113,7 @@ public:
     void drawButtonBackground(juce::Graphics& g, juce::Button& button,
         const juce::Colour& background, bool over, bool down) override
     {
-        if (button.getButtonText().trim().isEmpty()) return; // Icon-only: no permanent plate/frame.
+        if (button.getButtonText().trim().isEmpty() || static_cast<bool>(button.getProperties()["mrIconOnly"])) return; // Icon-only: no permanent plate/frame.
         auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
         const bool enabled = button.isEnabled();
         g.setColour(background.withMultipliedAlpha(enabled ? 1.0f : 0.45f));

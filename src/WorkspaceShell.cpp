@@ -22,8 +22,8 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
     setLookAndFeel(&theme);
     hub->setLookAndFeel(&juce::LookAndFeel::getDefaultLookAndFeel()); // Preserve legacy DAW appearance.
     brand.setText("Arranger Manager", juce::dontSendNotification);
-    brand.setFont(juce::FontOptions(19.0f, juce::Font::bold));
-    title.setFont(juce::FontOptions(26.0f, juce::Font::bold));
+    brand.setFont(juce::FontOptions(17.0f, juce::Font::bold));
+    title.setFont(juce::FontOptions(24.0f, juce::Font::bold));
     for (auto* label : { &brand, &title, &breadcrumb, &description, &empty })
     {
         addAndMakeVisible(label);
@@ -43,13 +43,13 @@ WorkspaceShell::WorkspaceShell(arranger::WorkspaceModel& data, std::unique_ptr<H
         tab->setColour(juce::TextButton::textColourOnId, mr::colour(mr::tokens::bright));
     }
     addPage.setColour(juce::TextButton::buttonColourId, mr::colour(mr::tokens::selected));
-    blocksTab.setButtonText(text("Блоки"));
+    blocksTab.setButtonText(text("Содержимое"));
     tasksTab.setButtonText(text("Задачи"));
     for (auto* button : { &addPage, &addChild, &rename, &move, &archiveButton, &blocksTab, &tasksTab }) addAndMakeVisible(button);
     for (auto* list : { &nav, &archive })
     {
         addAndMakeVisible(list);
-        list->setRowHeight(list == &nav ? 44 : 52);
+        list->setRowHeight(list == &nav ? 32 : 36);
         list->setColour(juce::ListBox::backgroundColourId, mr::colour(mr::tokens::panel));
         list->setMultipleSelectionEnabled(false);
     }
@@ -103,7 +103,7 @@ void WorkspaceShell::resized()
     description.setBounds(content.removeFromTop(32));
     content.removeFromTop(8);
     auto tabs = content.removeFromTop(32);
-    blocksTab.setBounds(tabs.removeFromLeft(90).reduced(2));
+    blocksTab.setBounds(tabs.removeFromLeft(116).reduced(2));
     tasksTab.setBounds(tabs.removeFromLeft(110).reduced(2));
     content.removeFromTop(6);
     tasks.setBounds(content);
@@ -215,7 +215,7 @@ void WorkspaceShell::showDetails()
         breadcrumb.setText(text("Рабочее пространство"), juce::dontSendNotification);
         title.setText(text("Все задачи"), juce::dontSendNotification);
         description.setText(text("Задач: ") + juce::String(static_cast<int>(taskReferences.size()))
-            + text("  ·  Стрелка — раскрыть · правый клик — действия"), juce::dontSendNotification);
+            + text(" задач"), juce::dontSendNotification);
     }
     else if (archivedView)
     {
@@ -232,7 +232,7 @@ void WorkspaceShell::showDetails()
         for (const auto& item : model.tasks)
             if (item.ownerPageId == page->id && !arranger::WorkspaceQueries::taskArchived(model, item.id)) ++count;
         tasksTab.setButtonText(text("Задачи (") + juce::String(count) + ")");
-        description.setText(text("Задач страницы: ") + juce::String(count) + text(" · Стрелка — раскрыть · правый клик — действия"), juce::dontSendNotification);
+        description.setText(pageTasks ? juce::String(count) + text(" задач") : text("Описание и материалы страницы"), juce::dontSendNotification);
     }
     else if (taskView)
     {
@@ -253,7 +253,8 @@ bool WorkspaceShell::execute(const arranger::WorkspaceAction& action)
 }
 bool WorkspaceShell::flushEdits()
 {
-    auto result = blockEditor.flush();
+    auto result = tasks.flush();
+    if (result.wasOk()) result = blockEditor.flush();
     if (result.wasOk()) result = taskDetails->flush();
     if (result.failed()) report(result);
     return result.wasOk();
