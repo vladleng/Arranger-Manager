@@ -28,7 +28,7 @@ private:
     bool keyPressed(const juce::KeyPress&, juce::Component*) override;
     void beginInline(arranger::TaskTreeRow);
     void positionInline();
-    void cancelInline();
+    void cancelInline(bool refocus = true);
     void statusMenu(arranger::TaskTreeRow, juce::Point<int>);
     void rebuild();
     void toggle(int);

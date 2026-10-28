@@ -413,15 +413,15 @@ void TaskTree::positionInline()
     }
 }
 void TaskTree::listWasScrolled() { positionInline(); }
-void TaskTree::cancelInline()
+void TaskTree::cancelInline(bool refocus)
 {
-    editing.reset(); inlineEditor.setVisible(false); list.grabKeyboardFocus();
+    editing.reset(); inlineEditor.setVisible(false); if (refocus) list.grabKeyboardFocus();
 }
 juce::Result TaskTree::flush()
 {
     if (!editing || committing) return juce::Result::ok();
     const auto row = *editing; const auto value = inlineEditor.getText();
-    if ((!row.addChild && value == expectedText) || (row.addChild && value.trim().isEmpty())) { cancelInline(); return juce::Result::ok(); }
+    if ((!row.addChild && value == expectedText) || (row.addChild && value.trim().isEmpty())) { cancelInline(false); return juce::Result::ok(); }
     committing = true;
     const auto result = execute([&](arranger::WorkspaceCommands& cmd)
     {
@@ -430,7 +430,7 @@ juce::Result TaskTree::flush()
     });
     if (result.wasOk())
     {
-        cancelInline(); rebuild(); if (changed) changed();
+        cancelInline(false); rebuild(); if (changed) changed();
     }
     else
     {
