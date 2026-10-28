@@ -57,9 +57,8 @@ public:
     Icons()
     {
         for (const auto& source : assets::icons)
-            if (auto xml = juce::parseXML(source.xml))
-                if (auto drawable = juce::Drawable::createFromSVG(*xml))
-                    cache.emplace(source.id, std::move(drawable));
+            if (auto drawable = juce::Drawable::createFromSVGString(juce::String::fromUTF8(source.xml)))
+                cache.emplace(source.id, std::move(drawable));
     }
     void draw(const char* id, juce::Graphics& g, juce::Rectangle<float> bounds)
     {
