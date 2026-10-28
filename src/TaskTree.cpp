@@ -21,7 +21,7 @@ void pill(juce::Graphics& g, juce::String caption, juce::Colour colour, int x, i
     if (dot)
     {
         if (icons && iconId) icons->draw(iconId, g, {static_cast<float>(x + 7), static_cast<float>(y + 5), 9, 9});
-        else { g.setColour(mr::colour(mr::tokens::meta)); g.drawEllipse(static_cast<float>(x + 9), static_cast<float>(y + 4), 7, 7, 1); }
+        else { g.setColour(mr::colour(mr::tokens::meta)); g.drawEllipse(static_cast<float>(x + 9), static_cast<float>(y + 6), 7, 7, 1); }
     }
     g.setColour(juce::Colours::white); g.setFont(juce::FontOptions(12.0f));
     g.drawText(caption, x + (dot ? 21 : 0), y, width - (dot ? 21 : 0), 20, dot ? juce::Justification::centredLeft : juce::Justification::centred, true);
@@ -118,7 +118,7 @@ void TaskTree::paintListBoxItem(int index, juce::Graphics& g, int width, int hei
     {
         auto caption = note(model, row); if (caption.isEmpty()) caption = tr("Заметок пока нет");
         g.setColour(mr::colour(mr::tokens::muted)); g.setFont(juce::FontOptions(13.0f));
-        g.drawFittedText(caption, 28 + indent, 4, width - 44 - indent, height - 8, juce::Justification::centredLeft, 2, 1.0f);
+        g.drawFittedText(caption, columns.name + indent + 20, 4, width - columns.name - indent - 36, height - 8, juce::Justification::centredLeft, 2, 1.0f);
         return;
     }
     juce::Path arrow;
@@ -406,7 +406,7 @@ void TaskTree::positionInline()
     {
         auto bounds = list.getRowPosition(i, true).translated(list.getX(), list.getY());
         const Columns columns(list.getVisibleContentWidth());
-        const int left = editing->notes ? 28 + editing->depth * 14 : columns.name + editing->depth * 14;
+        const int left = editing->notes ? columns.name + editing->depth * 14 + 20 : columns.name + editing->depth * 14;
         bounds.removeFromLeft(left); bounds.removeFromRight(10);
         if (editing->notes) bounds.setHeight(juce::jmin(88, juce::jmax(32, getHeight() - bounds.getY())));
         inlineEditor.setBounds(bounds.reduced(1)); return;

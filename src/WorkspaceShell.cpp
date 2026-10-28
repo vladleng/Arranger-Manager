@@ -100,9 +100,9 @@ void WorkspaceShell::resized()
     hub->setBounds(content);
     breadcrumb.setBounds(content.removeFromTop(28));
     title.setBounds(content.removeFromTop(48));
-    description.setBounds(content.removeFromTop(32));
+    description.setBounds(content.removeFromTop(24));
     content.removeFromTop(8);
-    auto tabs = content.removeFromTop(32);
+    auto tabs = selectedPage().isNotEmpty() ? content.removeFromTop(32) : juce::Rectangle<int>();
     blocksTab.setBounds(tabs.removeFromLeft(116).reduced(2));
     tasksTab.setBounds(tabs.removeFromLeft(110).reduced(2));
     content.removeFromTop(6);
@@ -159,6 +159,7 @@ void WorkspaceShell::refresh()
     rebuilding = false;
     if (persistView) persistView(viewKey);
     showDetails();
+    resized();
 }
 
 void WorkspaceShell::select(const juce::String& key)
@@ -214,7 +215,7 @@ void WorkspaceShell::showDetails()
     {
         breadcrumb.setText(text("Рабочее пространство"), juce::dontSendNotification);
         title.setText(text("Все задачи"), juce::dontSendNotification);
-        description.setText(text("Задач: ") + juce::String(static_cast<int>(taskReferences.size()))
+        description.setText(juce::String(static_cast<int>(taskReferences.size()))
             + text(" задач"), juce::dontSendNotification);
     }
     else if (archivedView)
