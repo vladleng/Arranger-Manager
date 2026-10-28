@@ -1,54 +1,42 @@
 # Arranger Manager
 
-Рабочее пространство для музыкальных и обычных проектов: задачи и страницы, план дня, календарь, Timeline, аналитика соцсетей и интеграция с ChatGPT. **Принятая версия — 0.1f: ядро рабочего пространства, страницы и DAW-органайзер для Fender Studio Pro.** Основной продукт сейчас — отдельное Windows-приложение, которое читает **сохранённые** `.song` без запуска DAW. В репозитории также есть обычный Hub VST3 и экспериментальный ARA Inspector; ARA не требуется для работы приложения.
+Самостоятельное рабочее пространство экосистемы MR: страницы и задачи, план дня, календарь, Timeline, аналитика и GPT. **Решение 2026-10-28: связь со Studio Pro упразднена; сначала интеграция с MR Live, затем MR Studio.** Название продукта пока сохраняется.
 
-## Текущее состояние — принятая 0.1g
+[Решение и изученные ассеты MR](docs/MR-ECOSYSTEM.md) · [ROADMAP](docs/ROADMAP.md) · [HANDOFF](docs/HANDOFF.md) · [Модель](docs/WORKSPACE-ARCHITECTURE.md)
 
-0.1g принята пользователем 2026-10-02 и слита в main через PR #45. Windows Build #67 успешна, 6/6 тестовых наборов пройдены. Следующая работа — 0.1h: общие задачи и страницы задач.
+## Состояние
 
-Ядро, навигация, архив страниц и блочный редактор реализованы. [HANDOFF](docs/HANDOFF.md) · [ROADMAP](docs/ROADMAP.md) · [Проверка 0.1g](docs/HYBRID-0.1g.md).
+- Принятые 0.1e–0.1g находятся в main: устойчивые ID, хранилище и миграция, страницы/навигация/архив, блочный редактор.
+- 0.1h — кандидат [PR #46](https://github.com/vladleng/Arranger-Manager/pull/46): общие задачи и подробные описания, раскрытие задач/чек-поинтов и меню по ПКМ. [Build #74](https://github.com/vladleng/Arranger-Manager/actions/runs/37249113209) ранее прошла 8/8 наборов; пользовательская приёмка ожидается. Кандидат ещё не слит.
+- MR-дизайн/адаптеры сейчас **планируются**, не реализованы. Старый Studio Pro reader/Hub/Inspector остаётся в коде до отдельного вывода зависимости #7; `.show` исследование #19 отменено. Смена плана не удаляет старые задачи, Notes, backups или пользовательские исходники.
 
-Задачи и чек-поинты песни создаются в приложении: правый клик по песне → New task, по задаче → New checkpoint. Название меняется двойным кликом, порядок — перетаскиванием внутри песни или задачи. Notes песни и строк задач/треков/клипов редактируются прямо в ячейке; исходные Notes песни видны в шапке. Type песни выбирается из четырёх значков. Папки Studio Pro показываются, если содержат дорожки со статусом. PROG песни считает DONE среди размеченных треков и задач верхнего уровня; папки и чек-поинты отдельно не считаются. Меню открываются у курсора. Все задачи и заметки хранятся локально; `.song` приложение только читает. [Инструкция 0.1d](docs/HYBRID-0.1d.md).
+## Будущая работа
 
-- Каталог нескольких `.song`: добавление проектов, папки, перемещение и удаление записей из каталога. Исходные файлы при этом не удаляются.
-- Дерево `папка → песня → задачи/дорожки → чек-поинты/аудио/MIDI-клипы`; треки раскрываются по запросу. Группы Tracks/Markers и сами маркеры не показываются. Название клипа показано слева, а пересекающиеся секции Arranger — цветными квадратиками в Parts после Type. Поле Position убрано.
-- В обзор попадают только клипы, целиком расположенные между маркерами песни `Start` и `End`. При отсутствующей или некорректной паре приложение скрывает клипы и показывает предупреждение. Маркеры не служат заметками клипов.
-- Статус и название **клипа** читаются из имени: `WIP | название | заметка` (третья часть сохраняется в Studio Pro, но не выводится в локальном Notes). Поддерживаются `POOL`, `TODO`, `WIP`, `DRAFT`, `WAIT`, `DONE`, `BLOCKED`; старое `REVIEW` распознаётся как `WAIT`. Старые имена с `P1`–`P4` читаются, но приоритет клипа не отображается.
-- Статус **песни** выбирается вручную в колонке Status и хранится в локальном каталоге. Статус **трека** читается из начала его имени в `.song` (`WIP | Drums`), а локальная заметка вводится отдельно в приложении. Трек без статуса скрыт и не участвует в PROG песни. Приоритет песни P1–P4 пока не реализован.
-- PROG трека показывает `клипы DONE / клипы с распознанным статусом`. PROG песни считает `треки и задачи DONE / все размеченные треки и задачи`, PROG папки — `песни DONE / все песни в папке`. Это счётчики объектов, а не покрытие времени или секций.
-- Info и Notes самой песни остаются в шапке из сохранённого `.song`. Поле Notes у задач, чек-поинтов, треков и клипов хранится локально и редактируется кликом; заметки треков Studio Pro и третья часть имени клипа в этой колонке не отображаются. Дорожки, клипы, секции и маркеры читаются из сохранённого `.song`. Изменения в Studio Pro становятся видны после сохранения. Приложение пока не записывает в `.song` и не видит несохранённые изменения.
+| Направление | Задача |
+| --- | --- |
+| Общее пространство и приёмка 0.2 | [#37](https://github.com/vladleng/Arranger-Manager/issues/37) |
+| Дизайн MR Live / MR UDS Manager Kit | [#47](https://github.com/vladleng/Arranger-Manager/issues/47) |
+| Первый контракт и адаптер MR Live (новый 0.1i) | [#48](https://github.com/vladleng/Arranger-Manager/issues/48) |
+| Затем MR Studio на том же слое источников | [#49](https://github.com/vladleng/Arranger-Manager/issues/49) |
+| План дня 0.3, календарь 0.4, Timeline 0.5 | [#38](https://github.com/vladleng/Arranger-Manager/issues/38), [#39](https://github.com/vladleng/Arranger-Manager/issues/39), [#40](https://github.com/vladleng/Arranger-Manager/issues/40) |
+| Аналитика 0.6 и GPT 0.7 | [#41](https://github.com/vladleng/Arranger-Manager/issues/41), [#42](https://github.com/vladleng/Arranger-Manager/issues/42) |
 
-[Запуск Windows-приложения 0.1d](docs/HYBRID-0.1d.md) · [Передача контекста разработчику или новому чату](docs/HANDOFF.md) · [Концепция](docs/CONCEPT.md) · [Актуальный план](docs/ROADMAP.md)
+[Общий план #36](https://github.com/vladleng/Arranger-Manager/issues/36). Обычные задачи работают без Live/Studio. Связи с музыкальными источниками используют стабильные ID и явное владение, без копий задач. Проценты, статусы и сохранение различаются у источников; контракт выбирается до записи данных. Read-only snapshot не равен двусторонней интеграции.
 
-## Новый план развития
+## Ассеты и дизайн
 
-| Выпуск | Возможности | Задача |
-| --- | --- | --- |
-| 0.2 | Общее ядро, страницы и страницы задач, миграция DAW-данных | [#37](https://github.com/vladleng/Arranger-Manager/issues/37) |
-| 0.3 | План дня из общего списка задач | [#38](https://github.com/vladleng/Arranger-Manager/issues/38) |
-| 0.4 | Календарь всех страниц | [#39](https://github.com/vladleng/Arranger-Manager/issues/39) |
-| 0.5 | Timeline проектов | [#40](https://github.com/vladleng/Arranger-Manager/issues/40) |
-| 0.6 | Сбор и обзор аналитики соцсетей | [#41](https://github.com/vladleng/Arranger-Manager/issues/41) |
-| 0.7 | Интеграция с ChatGPT | [#42](https://github.com/vladleng/Arranger-Manager/issues/42) |
+Общая библиотека — `assets/ui/mr-uds/` в [MR-Studio](https://github.com/vladleng/MR-Studio), в том числе Manager SVG Kit v1: 46 SVG, семантические токены и каталог. [MR Live reference](https://vladleng.github.io/MR-Studio/tools/design-lab/live/) задаёт графитовый компактный стиль и workflow. Kit и native Live есть в тематических ветках, не полностью в main; точные sources и границы описаны в [MR-ECOSYSTEM](docs/MR-ECOSYSTEM.md). Наличие SVG не означает внедрение в приложение.
 
-Все строки — плановые выпуски; 0.1e/0.1f приняты, 0.1g — кандидат редактора, 0.1h и далее не начаты. Единые задачи отображаются на страницах, в Сегодня, календаре и Timeline; .song остаётся только для чтения. В кандидате 0.1e выбран отдельный версионированный JSON и JUCE для этапа 1; первые соцсети и способ GPT-интеграции проверяются перед соответствующим подэтапом. Телефон остаётся отложенным.
+## Сборка существующей базы
 
-[Общий план #36](https://github.com/vladleng/Arranger-Manager/issues/36) · [Подэтапы и приёмка](docs/ROADMAP.md) · [Модель рабочего пространства](docs/WORKSPACE-ARCHITECTURE.md)
-
-## Сборка и тесты
-
-Требуются CMake 3.22+, C++20 и JUCE 9.0.2 (CMake получает его через FetchContent). Основная Windows CI: `.github/workflows/windows-build.yml`.
+CMake 3.22+, C++20, JUCE 9.0.2 через FetchContent. Main содержит принятую 0.1g; функциональный кандидат 0.1h — в отдельной ветке. Для main:
 
 ```sh
 cmake -S . -B build
-cmake --build build --config Release --target ArrangerManagerDesktop ArrangerManagerHub_VST3 ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests BlockEditorTests --parallel 2
+cmake --build build --config Release --target ArrangerManagerDesktop ArrangementTagTests SongSnapshotTests SongCatalogTests WorkspaceTests WorkspaceNavigationTests BlockEditorTests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-CI создаёт архив `Arranger-Manager-0.1g-Windows-App` с `Arranger Manager.exe` и инструкцией. ARA Inspector собирается отдельно с `-DARRANGER_BUILD_ARA_INSPECTOR=ON` и ARA SDK 2.3.0. Fix2 прошёл Windows Build #40 и пользовательскую проверку. Fix4 прошёл Windows Build #43 и пользовательскую проверку; 0.1b, fix1, 0.1c и 0.1d проверены пользователем. Windows Build #50 для 0.1d прошёл.
+Существующий Hub VST3 и опциональный ARA Inspector — legacy цели, не обязательная архитектура будущей MR-связи. Docs-only актуализация 2026-10-28 не требует сборки.
 
-## Как читать документы
-
-`docs/CONCEPT.md`, `docs/ROADMAP.md` и `docs/HANDOFF.md` описывают **текущий** путь развития. Файлы `docs/HUB-0.0*.md`, `docs/STAGE0-TEST.md`, `docs/MAP-PREVIEW-0.0b.md`, `docs/DOCK-TEST-0.0d.md` и `docs/CONTEXT-BRIDGE-*.md` фиксируют **исторические прототипы и проверки**; их ранние UI, приоритеты на клипах и служебные ARA-дорожки не следует переносить в новую разработку как действующие требования.
-
-Задачи по этапам ведутся в GitHub Issues; 0.1 находится в [PR #20](https://github.com/vladleng/Arranger-Manager/pull/20) поверх [PR #16](https://github.com/vladleng/Arranger-Manager/pull/16), fix1 — в [PR #21](https://github.com/vladleng/Arranger-Manager/pull/21), fix2 — в [PR #23](https://github.com/vladleng/Arranger-Manager/pull/23), fix3 — в [PR #25](https://github.com/vladleng/Arranger-Manager/pull/25), fix4 — поверх fix3; 0.1b fix1 — [PR #30](https://github.com/vladleng/Arranger-Manager/pull/30), 0.1c — [PR #32](https://github.com/vladleng/Arranger-Manager/pull/32), 0.1d — [PR #34](https://github.com/vladleng/Arranger-Manager/pull/34) поверх него. Весь этот исторический стек включён в `main` через PR #34 2026-10-02. Для новой работы создавайте ветку от актуального `main`.
+Документы `HYBRID-*`, `HUB-*`, `CONTEXT-BRIDGE-*` и ранние ARA checks описывают исторические версии Studio Pro направления. Они не являются действующим заданием на развитие `.song`/`.show`/ARA интеграции.
