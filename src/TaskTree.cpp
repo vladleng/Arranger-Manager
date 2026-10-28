@@ -47,10 +47,10 @@ juce::String note(const arranger::WorkspaceModel& model, const arranger::TaskTre
     return {};
 }
 }
-TaskTree::TaskTree(arranger::WorkspaceModel& data, Execute run, std::function<bool()> flush,
+TaskTree::TaskTree(arranger::WorkspaceModel& data, Execute run, std::function<bool()> flushPending,
     std::function<void(arranger::TaskReference)> openTask, std::function<void()> notify,
     std::function<void(juce::String)> archiveTask, std::function<void()> newTask)
-    : model(data), execute(std::move(run)), before(std::move(flush)), open(std::move(openTask)),
+    : model(data), execute(std::move(run)), before(std::move(flushPending)), open(std::move(openTask)),
       changed(std::move(notify)), create(std::move(newTask)), archive(std::move(archiveTask))
 {
     addAndMakeVisible(list); list.setRowHeight(32); list.setMultipleSelectionEnabled(false);
